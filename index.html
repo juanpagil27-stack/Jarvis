@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>JARVIS OS</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="JARVIS">
+<meta name="theme-color" content="#0a0d11">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0d11; --bg2:#0d1116; --panel:rgba(255,255,255,.045); --panel-hi:rgba(255,255,255,.08);
+  --border:rgba(255,255,255,.09); --text:#e7ecef; --muted:#8592a0; --muted2:#5b6672;
+  --accent:#49e0c8; --accent-dim:rgba(73,224,200,.15); --amber:#e0ab55; --red:#e06868; --blue:#5b9ee0;
+  --radius:14px;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+html,body{height:100%;}
+body{
+  background:radial-gradient(circle at 20% 0%, #0d1a1a 0%, var(--bg) 45%);
+  color:var(--text); font-family:'Inter',sans-serif; overflow:hidden;
+}
+::selection{background:var(--accent-dim); color:var(--accent);}
+.mono{font-family:'JetBrains Mono',monospace;}
+h1,h2,h3,.brand{font-family:'Space Grotesk',sans-serif;}
+
+/* Boot screen */
+#boot{position:fixed; inset:0; background:var(--bg); z-index:999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px; transition:opacity .5s ease;}
+#boot .ring{width:56px; height:56px; border-radius:50%; border:2px solid var(--border); border-top-color:var(--accent); animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#boot p{color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:13px; letter-spacing:.05em;}
+#boot .b2{color:var(--accent);}
+
+/* App shell */
+#app{display:none; height:100%;}
+#app.show{display:flex;}
+.sidebar{
+  width:230px; flex:none; background:var(--bg2); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; padding:22px 14px;
+}
+.brand{font-size:19px; font-weight:700; display:flex; align-items:center; gap:8px; padding:0 8px 22px; border-bottom:1px solid var(--border); margin-bottom:14px;}
+.brand .dot{width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent);}
+nav{display:flex; flex-direction:column; gap:2px; flex:1;}
+.navbtn{
+  display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; border:none;
+  background:transparent; color:var(--muted); font:inherit; font-size:13.5px; text-align:left; cursor:pointer;
+  transition:background .15s, color .15s;
+}
+.navbtn .n{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted2); width:18px;}
+.navbtn:hover{background:var(--panel); color:var(--text);}
+.navbtn.active{background:var(--accent-dim); color:var(--accent);}
+.navbtn.active .n{color:var(--accent);}
+.sidebar-foot{border-top:1px solid var(--border); padding-top:12px; font-size:11px; color:var(--muted2); font-family:'JetBrains Mono',monospace;}
+
+.main{flex:1; display:flex; flex-direction:column; min-width:0; height:100%;}
+.topbar{
+  display:flex; align-items:center; gap:12px; padding:14px 24px; border-bottom:1px solid var(--border);
+  padding-top:calc(14px + env(safe-area-inset-top,0px));
+}
+.cmdbar{
+  flex:1; display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--border);
+  border-radius:10px; padding:9px 14px;
+}
+.cmdbar input{flex:1; background:none; border:none; outline:none; color:var(--text); font:inherit; font-size:13px;}
+.cmdbar input::placeholder{color:var(--muted2);}
+.cmdbar .k{color:var(--muted2); font-size:11px; font-family:'JetBrains Mono',monospace; border:1px solid var(--border); border-radius:5px; padding:2px 6px;}
+.clock{font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--muted); white-space:nowrap;}
+
+.view{flex:1; overflow-y:auto; padding:24px; display:none;}
+.view.active{display:block;}
+
+.hero h1{font-size:26px; font-weight:600; letter-spacing:-.01em;}
+.hero .mission{color:var(--muted); margin-top:6px; font-size:14px;}
+.grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin-top:22px;}
+.card{
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:18px;
+}
+.card h3{font-size:12.5px; color:var(--muted); font-weight:600; letter-spacing:.02em; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;}
+.big{font-size:26px; font-weight:600; font-family:'Space Grotesk',sans-serif;}
+.sub{color:var(--muted); font-size:12.5px; margin-top:3px;}
+.bar{height:6px; border-radius:4px; background:rgba(255,255,255,.07); margin-top:12px; overflow:hidden;}
+.bar > div{height:100%; background:var(--accent); border-radius:4px; transition:width .4s ease;}
+.pill{font-size:10px; padding:2px 7px; border-radius:20px; font-weight:600; letter-spacing:.03em;}
+.pill.CRITICAL{background:rgba(224,104,104,.15); color:var(--red);}
+.pill.HIGH{background:rgba(224,171,85,.15); color:var(--amber);}
+.pill.MEDIUM{background:rgba(91,158,224,.15); color:var(--blue);}
+.pill.LOW{background:rgba(255,255,255,.08); color:var(--muted);}
+.demo{font-size:9.5px; color:var(--muted2); letter-spacing:.08em; font-family:'JetBrains Mono',monospace; border:1px solid var(--border); padding:1px 6px; border-radius:4px;}
+
+.status-row{display:flex; gap:20px; flex-wrap:wrap; margin-top:22px;}
+.status-item{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted); font-family:'JetBrains Mono',monospace;}
+.status-item .d{width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 6px var(--accent);}
+
+.askbtn{
+  margin-top:22px; background:var(--accent); color:#06201c; border:none; padding:13px 22px; border-radius:11px;
+  font:inherit; font-weight:700; font-size:14px; cursor:pointer; letter-spacing:.01em;
+}
+.askbtn:hover{filter:brightness(1.08);}
+
+.viewhead{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:18px;}
+.viewhead h2{font-size:20px; font-weight:600;}
+.btn{background:var(--panel); border:1px solid var(--border); color:var(--text); padding:9px 15px; border-radius:9px; font:inherit; font-size:13px; cursor:pointer;}
+.btn:hover{background:var(--panel-hi);}
+.btn.primary{background:var(--accent); color:#06201c; border:none; font-weight:600;}
+.toolbar{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
+.toolbar input,.toolbar select{background:var(--panel); border:1px solid var(--border); color:var(--text); padding:8px 11px; border-radius:8px; font:inherit; font-size:12.5px;}
+.toolbar input{flex:1; min-width:140px;}
+
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th{text-align:left; color:var(--muted2); font-weight:600; font-size:11px; letter-spacing:.03em; padding:8px 10px; border-bottom:1px solid var(--border);}
+td{padding:10px; border-bottom:1px solid var(--border); vertical-align:middle;}
+tr:hover td{background:rgba(255,255,255,.02);}
+.rowbtn{background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; padding:3px 5px;}
+.rowbtn:hover{color:var(--text);}
+select.statsel{background:var(--bg2); border:1px solid var(--border); color:var(--text); border-radius:6px; font:inherit; font-size:11.5px; padding:4px 6px;}
+
+.modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; z-index:100;}
+.modal-bg.show{display:flex;}
+.modal{background:#10151b; border:1px solid var(--border); border-radius:16px; padding:24px; width:min(420px,90vw); max-height:85vh; overflow-y:auto;}
+.modal h3{font-size:16px; margin-bottom:16px;}
+.field{margin-bottom:12px;}
+.field label{display:block; font-size:11.5px; color:var(--muted); margin-bottom:5px;}
+.field input,.field select,.field textarea{width:100%; background:var(--panel); border:1px solid var(--border); color:var(--text); padding:9px 11px; border-radius:8px; font:inherit; font-size:13px;}
+.modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:18px;}
+
+.kanban{display:flex; gap:12px; overflow-x:auto; padding-bottom:10px;}
+.kcol{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; min-width:210px; flex:none;}
+.kcol h4{font-size:11.5px; color:var(--muted); margin-bottom:10px; display:flex; justify-content:space-between;}
+.kcard{background:var(--bg2); border:1px solid var(--border); border-radius:9px; padding:10px; margin-bottom:8px; font-size:12.5px;}
+.kcard .co{font-weight:600; font-size:13px;}
+.kcard .po{color:var(--muted); font-size:11.5px; margin-top:2px;}
+.kcard select{margin-top:8px; width:100%; font-size:11px;}
+
+.termwrap{background:#05070a; border:1px solid var(--border); border-radius:14px; height:calc(100vh - 230px); min-height:360px; display:flex; flex-direction:column; overflow:hidden;}
+.termhead{padding:10px 16px; border-bottom:1px solid var(--border); color:var(--muted2); font-family:'JetBrains Mono',monospace; font-size:11px;}
+.termbody{flex:1; overflow-y:auto; padding:16px; font-family:'JetBrains Mono',monospace; font-size:13px;}
+.termline{margin-bottom:12px; line-height:1.55;}
+.termline.user{color:var(--text);}
+.termline.user::before{content:"❯ "; color:var(--accent);}
+.termline.ai{color:#b9c2ca; white-space:pre-wrap;}
+.termline.ai::before{content:"JARVIS ▸ "; color:var(--accent); font-weight:600;}
+.terminput{display:flex; border-top:1px solid var(--border); padding:10px 14px; gap:8px;}
+.terminput input{flex:1; background:none; border:none; outline:none; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:13px;}
+.chips{display:flex; gap:6px; flex-wrap:wrap; margin-top:12px;}
+.chip{background:var(--panel); border:1px solid var(--border); padding:6px 11px; border-radius:20px; font-size:11.5px; color:var(--muted); cursor:pointer;}
+.chip:hover{color:var(--accent); border-color:var(--accent);}
+
+.empty{color:var(--muted2); font-size:13px; padding:30px 0; text-align:center;}
+.hidden{display:none !important;}
+
+@media(max-width:820px){
+  .sidebar{position:fixed; z-index:50; height:100%; transform:translateX(-100%); transition:transform .2s;}
+  .sidebar.open{transform:translateX(0);}
+  .topbar .menubtn{display:flex;}
+  .clock{display:none;}
+}
+.menubtn{display:none; background:none; border:1px solid var(--border); color:var(--text); width:34px; height:34px; border-radius:8px; align-items:center; justify-content:center; cursor:pointer; font-size:15px;}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]){ --bg:#0a0d11; --bg2:#0d1116; --text:#e7ecef; }
+}
+
+/* iPhone: no input zoom, safe areas, dynamic viewport */
+@supports(height:100dvh){html,body{height:100dvh;}}
+body{-webkit-tap-highlight-color:transparent; overscroll-behavior:none; -webkit-text-size-adjust:100%;}
+.view{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));}
+@media(max-width:820px){
+  input,select,textarea{font-size:16px !important;}
+  .view{padding:16px 14px calc(24px + env(safe-area-inset-bottom,0px));}
+  table{display:block; overflow-x:auto; white-space:nowrap;}
+  .grid[style*="repeat(4,1fr)"]{grid-template-columns:repeat(2,1fr) !important;}
+  .btn,.navbtn{min-height:40px;}
+}
+</style>
+</head>
+<body>
+
+<div id="boot">
+  <div class="ring"></div>
+  <p>INITIALIZING JARVIS OS<span class="mono"> ...</span></p>
+  <p class="b2" id="bootline2" style="opacity:0">● SYSTEM ONLINE</p>
+</div>
+
+<div id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="dot"></span>JARVIS OS</div>
+    <nav id="nav"></nav>
+    <div class="sidebar-foot">JUAN PABLO GIL ORNELAS<br>Personal Intelligence &amp; Command Center</div>
+  </aside>
+
+  <div class="main">
+    <div id="storageWarn" class="hidden" style="background:rgba(224,104,104,.15);border-bottom:1px solid var(--red);color:var(--red);padding:8px 24px;font-size:12.5px;">⚠ Browser storage is full and recent changes may not be saved. Your main data was not deleted. <button class="btn" onclick="exportData()" style="margin-left:8px;padding:4px 10px;">Export backup now</button></div>
+    <div class="topbar">
+      <button class="menubtn" id="menubtn">☰</button>
+      <div class="cmdbar">
+        <span class="mono" style="color:var(--muted2)">›</span>
+        <input id="cmdinput" placeholder="Command JARVIS… (/task, /career, /finance, /university, /project, /ask)">
+        <span class="k">⏎</span>
+      </div>
+      <div class="clock" id="clock"></div>
+    </div>
+
+    <!-- COMMAND CENTER -->
+    <section class="view active" data-view="dashboard">
+      <div class="hero">
+        <h1 id="greeting">GOOD EVENING, JUAN PABLO</h1>
+        <p class="mission">Current mission — "Build a better version of yourself."</p>
+      </div>
+      <div class="grid" id="dashGrid"></div>
+      <h3 style="margin-top:26px; font-size:12px; color:var(--muted); letter-spacing:.04em;">SYSTEM STATUS</h3>
+      <div class="status-row">
+        <div class="status-item"><span class="d"></span>AI CORE — ONLINE</div>
+        <div class="status-item"><span class="d"></span>TASK ENGINE — ONLINE</div>
+        <div class="status-item"><span class="d"></span>CAREER MODULE — ONLINE</div>
+        <div class="status-item"><span class="d"></span>FINANCE MODULE — ONLINE</div>
+        <div class="status-item"><span class="d"></span>UNIVERSITY MODULE — ONLINE</div>
+        <div class="status-item"><span class="d"></span>DATA STATUS — LOCAL DATA ACTIVE</div>
+      </div>
+      <p class="sub" style="margin-top:8px;">Last saved: <span id="lastSavedTxt2">—</span> · <a href="#" onclick="goto('data');return false;" style="color:var(--accent);">Manage in Data Center →</a></p>
+      <button class="askbtn" onclick="goto('ai')">ASK JARVIS →</button>
+    </section>
+
+    <!-- TASKS -->
+    <section class="view" data-view="tasks">
+      <div class="viewhead"><h2>Task Manager</h2><button class="btn primary" onclick="openTaskModal()">+ New Task</button></div>
+      <div class="grid" id="taskStats" style="grid-template-columns:repeat(4,1fr); margin-top:0;"></div>
+      <div class="toolbar" style="margin-top:18px;">
+        <input id="taskSearch" placeholder="Search tasks…" oninput="renderTasks()">
+        <select id="taskFilterCat" onchange="renderTasks()"><option value="">All categories</option></select>
+        <select id="taskFilterPr" onchange="renderTasks()"><option value="">All priorities</option></select>
+        <select id="taskSort" onchange="renderTasks()">
+          <option value="date">Sort: Date</option><option value="priority">Sort: Priority</option><option value="name">Sort: Name</option>
+        </select>
+      </div>
+      <table><thead><tr><th>Task</th><th>Category</th><th>Priority</th><th>Date</th><th>Status</th><th>Progress</th><th></th></tr></thead>
+      <tbody id="taskTable"></tbody></table>
+      <div class="empty hidden" id="taskEmpty">No tasks match. Create one to get started.</div>
+    </section>
+
+    <!-- UNIVERSITY -->
+    <section class="view" data-view="university">
+      <div class="viewhead"><h2>University</h2><button class="btn primary" onclick="openUniModal()">+ Add Item</button></div>
+      <p class="sub" id="uniSemesterTxt">7th Semester</p>
+      <div class="card" style="margin-top:16px;">
+        <h3>ACADEMIC PROGRESS</h3>
+        <div class="big" id="uniProgressNum">0%</div>
+        <div class="bar"><div id="uniProgressBar" style="width:0%"></div></div>
+      </div>
+      <h3 style="margin:20px 0 10px; font-size:12px; color:var(--muted);">SUBJECTS</h3>
+      <div class="grid" id="subjectsGrid"></div>
+      <h3 style="margin:22px 0 10px; font-size:12px; color:var(--muted);">UPCOMING DEADLINES</h3>
+      <table><thead><tr><th>Item</th><th>Subject</th><th>Type</th><th>Due</th><th></th></tr></thead><tbody id="uniTable"></tbody></table>
+    </section>
+
+    <!-- CAREER -->
+    <section class="view" data-view="career">
+      <div class="viewhead"><h2>Career Command Center</h2><button class="btn primary" onclick="openCareerModal()">+ New Application</button></div>
+      <div class="grid" id="careerStats" style="grid-template-columns:repeat(4,1fr); margin-top:0;"></div>
+      <div class="kanban" id="kanban" style="margin-top:18px;"></div>
+    </section>
+
+    <!-- FINANCE -->
+    <section class="view" data-view="finance">
+      <div class="viewhead"><h2>Finance</h2><button class="btn primary" onclick="openFinanceModal()">+ Add Entry</button></div>
+      <div class="grid" id="financeCards"></div>
+      <h3 style="margin:18px 0 10px; font-size:12px; color:var(--muted);">BALANCES BY CATEGORY <span style="font-weight:400;">— edit in Data Center</span></h3>
+      <div class="grid" id="financeBalances" style="margin-top:0;"></div>
+      <h3 style="margin:22px 0 10px; font-size:12px; color:var(--muted);">SAVINGS EVOLUTION</h3>
+      <div class="card"><svg id="financeChart" viewBox="0 0 600 160" width="100%" height="160"></svg></div>
+      <h3 style="margin:22px 0 10px; font-size:12px; color:var(--muted);">MONTHLY CASH FLOW</h3>
+      <table><thead><tr><th>Type</th><th>Category</th><th>Amount</th><th>Date</th></tr></thead><tbody id="financeTable"></tbody></table>
+    </section>
+
+    <!-- PROJECTS -->
+    <section class="view" data-view="projects">
+      <div class="viewhead"><h2>Projects</h2><button class="btn primary" onclick="openProjectModal()">+ New Project</button></div>
+      <div class="grid" id="projectsGrid"></div>
+    </section>
+
+    <!-- AI ASSISTANT -->
+    <section class="view" data-view="ai">
+      <div class="viewhead"><h2>JARVIS AI Core <span class="demo">SIMULATED — NO EXTERNAL API</span></h2></div>
+      <div class="termwrap">
+        <div class="termhead">jarvis-ai-core — local pattern engine — v1</div>
+        <div class="termbody" id="termbody"></div>
+        <div class="terminput"><span class="mono" style="color:var(--accent)">❯</span><input id="terminput" placeholder="Ask JARVIS…"></div>
+      </div>
+      <div class="chips">
+        <div class="chip" onclick="askPreset('Organiza mi día')">Organiza mi día</div>
+        <div class="chip" onclick="askPreset('¿Qué debería hacer primero?')">¿Qué debería hacer primero?</div>
+        <div class="chip" onclick="askPreset('Analiza mis tareas pendientes')">Analiza mis tareas</div>
+        <div class="chip" onclick="askPreset('Explícame mi situación financiera')">Situación financiera</div>
+        <div class="chip" onclick="askPreset('¿Qué proyectos tengo activos?')">Proyectos activos</div>
+        <div class="chip" onclick="askPreset('¿Qué estoy descuidando?')">¿Qué estoy descuidando?</div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" data-view="settings">
+      <div class="viewhead"><h2>Settings</h2></div>
+      <div class="card" style="max-width:420px;">
+        <div class="field"><label>Name</label><input id="setName" value="Juan Pablo Gil Ornelas"></div>
+        <div class="field"><label>Mission statement</label><input id="setMission" value="Build a better version of yourself."></div>
+        <button class="btn primary" onclick="saveSettings()">Save changes</button>
+        <p class="sub" style="margin-top:14px;">Data is stored locally in this browser (no cloud, no external accounts connected). Future integrations planned: Telegram, Google Calendar, Email, cloud database.</p>
+      </div>
+    </section>
+
+    <!-- NOTIFICATIONS -->
+    <section class="view" data-view="notifications">
+      <div class="viewhead"><h2>Notifications</h2><button class="btn" onclick="refreshPushState()">↻ Re-check</button></div>
+      <div class="card" id="pnStatus"></div>
+      <h3 style="margin:20px 0 10px; font-size:12px; color:var(--muted);">CONNECTION (this device only)</h3>
+      <div class="card" id="pnConn"></div>
+      <h3 style="margin:20px 0 10px; font-size:12px; color:var(--muted);">SMART NOTIFICATION RULES</h3>
+      <div class="card" id="pnSettings"></div>
+      <h3 style="margin:20px 0 10px; font-size:12px; color:var(--muted);">DEVICES</h3>
+      <div class="card" id="pnDevices"></div>
+      <h3 style="margin:20px 0 10px; font-size:12px; color:var(--muted);">HISTORY &amp; ERRORS</h3>
+      <div class="card" id="pnHistory"></div>
+      <h3 style="margin:20px 0 10px; font-size:12px; color:var(--muted);">INSTALL ON iPHONE</h3>
+      <div class="card sub" style="line-height:1.6;">
+        <ol style="margin-left:18px;"><li>Open the <b>hosted</b> JARVIS OS address in <b>Safari</b> (iOS 16.4 or later). It must be https.</li>
+        <li>Tap Share → <b>Add to Home Screen</b> → Add.</li><li>Open JARVIS from the new <b>Home Screen icon</b> (not from Safari).</li>
+        <li>Come back here, fill in the connection and tap <b>Enable notifications</b>; Safari asks for permission only after that tap.</li></ol>
+        <p>Web Push does not work inside the Claude preview copy or in a normal Safari tab on iPhone. Full hosting steps are in SETUP.md.</p></div>
+    </section>
+
+    <!-- EMAIL INTELLIGENCE -->
+    <section class="view" data-view="email">
+      <div class="viewhead"><h2>Email Intelligence</h2><div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn primary" onclick="emOpenImport()">⬆ Import digest</button>
+        <label class="btn" style="cursor:pointer;">Import file<input type="file" accept="application/json" onchange="emImportFile(event)" style="display:none;"></label>
+        <button class="btn" onclick="emSample()">Load sample data</button>
+        <button class="btn" onclick="emClear()">Clear email data</button></div></div>
+      <div class="card" id="emStatus"></div>
+      <div class="grid" id="emStats"></div>
+      <div class="toolbar" style="margin-top:18px;"><select id="emFilter" onchange="renderEmail()"><option value="">All categories</option><option>CAREER</option><option>FINANCE</option><option>UNIVERSITY</option><option>PERSONAL</option><option>SECURITY</option><option>GENERAL</option></select><label class="sub" style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="emArch" onchange="renderEmail()"> Show archived</label></div>
+      <table><thead><tr><th>Priority</th><th>Category</th><th>From</th><th>Subject</th><th>Received</th><th>Why</th><th></th></tr></thead><tbody id="emTable"></tbody></table>
+      <div class="empty hidden" id="emEmpty">No emails yet. Nothing has been imported from Gmail.</div>
+      <h3 style="margin:24px 0 10px; font-size:12px; color:var(--muted);">EMAIL ALERT SETTINGS</h3>
+      <div class="card" id="emSettings"></div>
+      <h3 style="margin:24px 0 10px; font-size:12px; color:var(--muted);">PRIVACY &amp; CONNECTIONS</h3>
+      <div class="card sub" id="emPrivacy" style="line-height:1.6;"></div>
+      <h3 style="margin:24px 0 10px; font-size:12px; color:var(--muted);">SETUP GUIDE</h3>
+      <div class="card sub" style="line-height:1.6;">
+        <p><b>How it works.</b> A Google Apps Script in <i>your</i> Google account reads Gmail (read-only) on a schedule, classifies with your rules, and exposes a private JSON digest. This page cannot call Gmail or Apps Script (published pages are blocked from network requests), so you import the digest here. Nothing is live: re-import to refresh. Optional: the same script pushes HIGH alerts to your own Telegram bot.</p>
+        <ol style="margin:10px 0 10px 18px;">
+          <li><b>Connect</b> (sign in as juanpagil27@gmail.com; the script refuses to run on any other account): script.google.com → New project → paste the code below into <code>Code.gs</code>. In Project Settings enable "Show appsscript.json" and replace it with the manifest below. Services (+) → add <b>Gmail API v1</b> (identifier <code>Gmail</code>).</li>
+          <li><b>Config:</b> copy the JSON from "Alert Settings" above. Project Settings → Script Properties → add <code>CONFIG</code> = that JSON. (Optional Telegram: <code>TELEGRAM_TOKEN</code> and <code>TELEGRAM_CHAT_ID</code>, stored only there.)</li>
+          <li><b>Authorize:</b> run <code>setup</code> once and accept the Google prompt. This also creates the periodic trigger and does a first run.</li>
+          <li><b>Digest URL:</b> Deploy → New deployment → Web app → Execute as <b>Me</b>, access <b>Only myself</b>. Open the URL while logged in, copy the JSON, then "Import digest" here (or save it as a .json file and use "Import file").</li>
+          <li><b>Verify:</b> status turns CONNECTED only after a real digest with a valid last run is imported. Check the Executions panel for errors; the digest also reports <code>status: error</code>.</li>
+          <li><b>Disconnect / revoke:</b> run <code>removeTriggers</code>, delete the project, then remove access at myaccount.google.com/permissions. "Clear email data" here wipes imported emails.</li>
+          <li><b>Duplicates:</b> the script remembers processed message ids and only looks at mail since its last run; the page also ignores repeated message ids.</li>
+        </ol>
+        <p><b>Permissions requested:</b> <code>gmail.readonly</code> (read mail; no send/modify/delete), <code>script.scriptapp</code> (create the schedule). Nothing else. Telegram is optional and OFF by default: it would need the extra scope <code>https://www.googleapis.com/auth/script.external_request</code> added to the manifest and sends alert text outside Google, so only enable it if you accept that. Attachments are never fetched and links are never opened by the script.</p>
+        <p><b>Limits:</b> triggers run every 1–30 minutes at best (not instant), within Google's free daily quotas; up to 100 new messages per run; classification uses sender and subject only (no body), so deadlines are only detected if written as YYYY-MM-DD in the subject.</p>
+        <p style="margin-top:10px;"><b>Code.gs</b></p><textarea id="gsCode" readonly onclick="this.select()" style="width:100%;height:160px;background:#05070a;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11px;">/**
+ * JARVIS OS · Email Intelligence — READ-ONLY Gmail digest.
+ * Requires: Services (+) → &quot;Gmail API&quot; v1, identifier Gmail. Scopes: see appsscript.json.
+ * Never sends, replies, forwards, archives, labels, deletes or marks mail as read.
+ * Never stores message bodies: only sender, subject, date, ids and the classification.
+ */
+const PRIO = {LOW: 1, MEDIUM: 2, HIGH: 3};
+const ORDER = [&#x27;SECURITY&#x27;, &#x27;CAREER&#x27;, &#x27;UNIVERSITY&#x27;, &#x27;FINANCE&#x27;, &#x27;PERSONAL&#x27;];
+const ACT = {
+  SECURITY: &#x27;Open the service directly (not via links in the email) and check your account activity.&#x27;,
+  CAREER: &#x27;Review the original email and reply or prepare as needed.&#x27;,
+  UNIVERSITY: &#x27;Review the original email and add the task/deadline to JARVIS OS.&#x27;,
+  FINANCE: &#x27;Review the original email and verify it directly with your bank/provider.&#x27;,
+  PERSONAL: &#x27;Review the original email.&#x27;,
+  GENERAL: &#x27;No action detected.&#x27;
+};
+const P = () =&gt; PropertiesService.getScriptProperties();
+
+function cfg() {
+  const raw = P().getProperty(&#x27;CONFIG&#x27;);
+  if (!raw) throw new Error(&#x27;CONFIG missing: paste the JSON from JARVIS OS &gt; Email Intelligence &gt; Alert Settings into Script Properties (key CONFIG).&#x27;);
+  return JSON.parse(raw);
+}
+function save_(key, arr) { // property values are limited in size, so store in chunks
+  const s = JSON.stringify(arr), n = Math.ceil(s.length / 6000) || 1, p = P();
+  Object.keys(p.getProperties()).filter(k =&gt; k.indexOf(key + &#x27;_&#x27;) === 0).forEach(k =&gt; p.deleteProperty(k));
+  for (let i = 0; i &lt; n; i++) p.setProperty(key + &#x27;_&#x27; + i, s.slice(i * 6000, (i + 1) * 6000));
+}
+function load_(key) {
+  const all = P().getProperties(); let s = &#x27;&#x27;;
+  for (let i = 0; all[key + &#x27;_&#x27; + i] !== undefined; i++) s += all[key + &#x27;_&#x27; + i];
+  return s ? JSON.parse(s) : [];
+}
+
+// Keywords are SIGNALS, not proof. Email content is untrusted data and is never executed.
+function classify_(from, subject, hasUnsub, c) {
+  const text = (from + &#x27; &#x27; + subject).toLowerCase(), f = from.toLowerCase();
+  const ps = (c.prioritySenders || []).find(s =&gt; s &amp;&amp; f.indexOf(s.toLowerCase()) &gt; -1);
+  let cat = &#x27;GENERAL&#x27;, kw = null;
+  for (const k of ORDER) {
+    if ((c.active || []).indexOf(k) &lt; 0) continue;
+    kw = (c.keywords[k] || []).find(w =&gt; w &amp;&amp; text.indexOf(w.toLowerCase()) &gt; -1);
+    if (kw) { cat = k; break; }
+  }
+  const act = (c.actionWords || []).find(w =&gt; w &amp;&amp; text.indexOf(w.toLowerCase()) &gt; -1);
+  let pr = &#x27;LOW&#x27;;
+  if (cat === &#x27;SECURITY&#x27;) pr = &#x27;HIGH&#x27;;
+  else if (cat !== &#x27;GENERAL&#x27; &amp;&amp; act) pr = &#x27;HIGH&#x27;;
+  else if (cat !== &#x27;GENERAL&#x27; || ps) pr = &#x27;MEDIUM&#x27;;
+  if (hasUnsub &amp;&amp; pr !== &#x27;HIGH&#x27; &amp;&amp; !ps) pr = &#x27;LOW&#x27;;
+  const why = [cat === &#x27;GENERAL&#x27; ? &#x27;no category keyword matched&#x27; : &#x27;category keyword &quot;&#x27; + kw + &#x27;&quot;&#x27;];
+  if (act) why.push(&#x27;action word &quot;&#x27; + act + &#x27;&quot;&#x27;);
+  if (ps) why.push(&#x27;priority sender &quot;&#x27; + ps + &#x27;&quot;&#x27;);
+  if (hasUnsub) why.push(&#x27;List-Unsubscribe header present&#x27;);
+  return {cat: cat, pr: pr, reason: why.join(&#x27;; &#x27;) + &#x27; (signals, not proof)&#x27;};
+}
+
+function quiet_(c) {
+  const h = new Date().getHours(), s = c.quietStart, e = c.quietEnd;
+  if (s === e) return false;
+  return s &lt; e ? (h &gt;= s &amp;&amp; h &lt; e) : (h &gt;= s || h &lt; e);
+}
+function tg_(text) { // optional free push via your own Telegram bot; token lives only in Script Properties
+  const p = P(), t = p.getProperty(&#x27;TELEGRAM_TOKEN&#x27;), id = p.getProperty(&#x27;TELEGRAM_CHAT_ID&#x27;);
+  if (!t || !id) return &#x27;not_configured&#x27;;
+  const r = UrlFetchApp.fetch(&#x27;https://api.telegram.org/bot&#x27; + t + &#x27;/sendMessage&#x27;,
+    {method: &#x27;post&#x27;, payload: {chat_id: id, text: text}, muteHttpExceptions: true});
+  return r.getResponseCode() === 200 ? &#x27;sent&#x27; : &#x27;error&#x27;;
+}
+function line_(a, mode) {
+  if (mode === &#x27;A&#x27;) return a.sender + &#x27; — &#x27; + a.subject;
+  if (mode === &#x27;B&#x27;) return &#x27;[&#x27; + a.category + &#x27;] &#x27; + a.sender + &#x27; — &#x27; + a.subject;
+  return a.category + &#x27; email needs review (details in JARVIS OS)&#x27;;
+}
+function notify_(a, c) {
+  if (a.priority !== &#x27;HIGH&#x27; || !c.telegramHigh || PRIO[a.priority] &lt; PRIO[c.minPriority]) return &#x27;in_app_only&#x27;;
+  if (quiet_(c)) return &#x27;suppressed_quiet_hours&#x27;;
+  return tg_(&#x27;JARVIS | &#x27; + a.category + &#x27; ALERT\nPriority: HIGH\n&#x27; + line_(a, c.display) + &#x27;\nOpen Gmail to review.&#x27;);
+}
+
+function run() {
+  const p = P(), started = Math.floor(Date.now() / 1000);
+  try {
+    const c = cfg();
+    const me = Gmail.Users.getProfile(&#x27;me&#x27;).emailAddress; // read-only call
+    p.setProperty(&#x27;ACCOUNT&#x27;, me);
+    if (me.toLowerCase() !== String(c.expectedAccount || &#x27;&#x27;).toLowerCase()) throw new Error(&#x27;Wrong Google account: &#x27; + me + &#x27; (expected &#x27; + c.expectedAccount + &#x27;)&#x27;);
+    const last = Number(p.getProperty(&#x27;LAST_EPOCH&#x27;)) || started - 2 * 86400;
+    const seen = JSON.parse(p.getProperty(&#x27;SEEN&#x27;) || &#x27;[]&#x27;);
+    const list = Gmail.Users.Messages.list(&#x27;me&#x27;, {q: &#x27;in:inbox after:&#x27; + (last - 600), maxResults: 100});
+    const fresh = [];
+    (list.messages || []).forEach(m =&gt; {
+      if (seen.indexOf(m.id) &gt; -1) return; // dedupe by message id
+      const g = Gmail.Users.Messages.get(&#x27;me&#x27;, m.id, {format: &#x27;metadata&#x27;, metadataHeaders: [&#x27;From&#x27;, &#x27;Subject&#x27;, &#x27;List-Unsubscribe&#x27;]});
+      const h = {};
+      (g.payload.headers || []).forEach(x =&gt; h[x.name.toLowerCase()] = x.value);
+      const r = classify_(h.from || &#x27;&#x27;, h.subject || &#x27;&#x27;, !!h[&#x27;list-unsubscribe&#x27;], c);
+      const dm = (h.subject || &#x27;&#x27;).match(/\b(\d{4}-\d{2}-\d{2})\b/); // only dates literally present in the subject
+      fresh.push({
+        eventId: &#x27;EV-&#x27; + m.id, emailId: m.id, sender: h.from || &#x27;&#x27;, subject: h.subject || &#x27;&#x27;,
+        receivedAt: new Date(Number(g.internalDate)).toISOString(), category: r.cat, priority: r.pr, reason: r.reason,
+        recommendedAction: ACT[r.cat], deadline: dm ? dm[1] : null,
+        gmailUrl: &#x27;https://mail.google.com/mail/u/0/#all/&#x27; + g.threadId, processing: &#x27;new&#x27;, notification: &#x27;none&#x27;
+      });
+      seen.push(m.id);
+    });
+    fresh.forEach(a =&gt; a.notification = notify_(a, c));
+    save_(&#x27;ALERTS&#x27;, fresh.concat(load_(&#x27;ALERTS&#x27;)).slice(0, 40));
+    p.setProperty(&#x27;SEEN&#x27;, JSON.stringify(seen.slice(-250)));
+    p.setProperty(&#x27;LAST_EPOCH&#x27;, String(started));
+    p.setProperty(&#x27;LAST_RUN&#x27;, new Date().toISOString());
+    p.setProperty(&#x27;SCANNED&#x27;, String(fresh.length));
+    p.setProperty(&#x27;STATUS&#x27;, &#x27;ok&#x27;); p.deleteProperty(&#x27;ERROR&#x27;);
+  } catch (e) { // quota or auth errors end up here and are reported in the digest
+    p.setProperty(&#x27;STATUS&#x27;, &#x27;error&#x27;); p.setProperty(&#x27;ERROR&#x27;, String(e).slice(0, 300));
+  }
+}
+
+function dailyDigest() {
+  const c = cfg(); if (!c.dailyDigest) return;
+  const since = Date.now() - 864e5;
+  const rows = load_(&#x27;ALERTS&#x27;).filter(a =&gt; new Date(a.receivedAt) &gt; since &amp;&amp; PRIO[a.priority] &gt;= PRIO[c.minPriority]);
+  if (!rows.length) return;
+  tg_(&#x27;JARVIS | DAILY DIGEST (only emails seen by the script, not the whole inbox)\n&#x27; +
+    rows.slice(0, 15).map(a =&gt; &#x27;• &#x27; + line_(a, c.display) + (a.deadline ? &#x27; (date in subject: &#x27; + a.deadline + &#x27;)&#x27; : &#x27;&#x27;)).join(&#x27;\n&#x27;));
+}
+
+function setup() { // run once: creates the periodic triggers
+  removeTriggers(); const c = cfg();
+  ScriptApp.newTrigger(&#x27;run&#x27;).timeBased().everyMinutes(c.intervalMinutes).create();
+  if (c.dailyDigest) ScriptApp.newTrigger(&#x27;dailyDigest&#x27;).timeBased().everyDays(1).atHour(c.digestHour).create();
+  run();
+}
+function removeTriggers() { ScriptApp.getProjectTriggers().forEach(t =&gt; ScriptApp.deleteTrigger(t)); }
+
+function doGet() { // web app deployed as &quot;Only myself&quot;: private JSON digest you copy into JARVIS OS
+  const p = P();
+  return ContentService.createTextOutput(JSON.stringify({
+    source: &#x27;jarvis-gmail-readonly&#x27;, version: 1, lastRun: p.getProperty(&#x27;LAST_RUN&#x27;),
+    scanned: Number(p.getProperty(&#x27;SCANNED&#x27;) || 0), status: p.getProperty(&#x27;STATUS&#x27;) || &#x27;ok&#x27;,
+    error: p.getProperty(&#x27;ERROR&#x27;), account: p.getProperty(&#x27;ACCOUNT&#x27;), alerts: load_(&#x27;ALERTS&#x27;)
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+</textarea>
+        <p style="margin-top:10px;"><b>appsscript.json</b></p><textarea id="gsManifest" readonly onclick="this.select()" style="width:100%;height:110px;background:#05070a;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11px;">{
+  &quot;timeZone&quot;: &quot;America/Mexico_City&quot;,
+  &quot;runtimeVersion&quot;: &quot;V8&quot;,
+  &quot;exceptionLogging&quot;: &quot;STACKDRIVER&quot;,
+  &quot;dependencies&quot;: {&quot;enabledAdvancedServices&quot;: [{&quot;userSymbol&quot;: &quot;Gmail&quot;, &quot;serviceId&quot;: &quot;gmail&quot;, &quot;version&quot;: &quot;v1&quot;}]},
+  &quot;webapp&quot;: {&quot;executeAs&quot;: &quot;USER_DEPLOYING&quot;, &quot;access&quot;: &quot;MYSELF&quot;},
+  &quot;oauthScopes&quot;: [
+    &quot;https://www.googleapis.com/auth/gmail.readonly&quot;,
+    &quot;https://www.googleapis.com/auth/script.scriptapp&quot;
+  ]
+}
+</textarea>
+      </div>
+    </section>
+
+    <!-- DATA CENTER -->
+    <section class="view" data-view="data">
+      <div class="viewhead"><h2>⚙️ Data Center</h2></div>
+      <p class="sub">This is where every number in JARVIS OS lives. Edit anything here and it updates everywhere automatically — no code, no JSON, no coming back to Claude.</p>
+
+      <h3 style="margin:20px 0 10px; font-size:12px; color:var(--muted);">PERSONAL</h3>
+      <div class="grid" id="dcPersonal"></div>
+
+      <h3 style="margin:22px 0 10px; font-size:12px; color:var(--muted);">FINANCE</h3>
+      <div class="grid" id="dcFinance"></div>
+
+      <h3 style="margin:22px 0 10px; font-size:12px; color:var(--muted);">CAREER <span style="font-weight:400; color:var(--muted2);">— computed from your applications, managed in Career</span></h3>
+      <div class="grid" id="dcCareer"></div>
+
+      <h3 style="margin:22px 0 10px; font-size:12px; color:var(--muted);">UNIVERSITY</h3>
+      <div class="grid" id="dcUniversity"></div>
+      <table style="margin-top:12px;"><thead><tr><th>Subject</th><th>Progress / Grade</th><th></th></tr></thead><tbody id="dcSubjects"></tbody></table>
+
+      <h3 style="margin:22px 0 10px; font-size:12px; color:var(--muted);">PROJECTS <span style="font-weight:400; color:var(--muted2);">— managed in Projects</span></h3>
+      <div class="grid" id="dcProjects"></div>
+
+      <h3 style="margin:26px 0 10px; font-size:12px; color:var(--muted);">DATA RETENTION &amp; CLEANUP</h3>
+      <div class="card" id="dcRetention"></div>
+      <h3 style="margin:26px 0 10px; font-size:12px; color:var(--muted);">BACKUP &amp; RESET</h3>
+      <div class="card" style="max-width:520px;">
+        <p class="sub">Data version: <span id="dcVersion"></span> · Last saved: <span id="lastSavedTxt">—</span></p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">
+          <button class="btn primary" onclick="exportData()">⬇ Export data</button>
+          <button class="btn" onclick="exportData()">⬇ Download backup</button>
+          <label class="btn" style="cursor:pointer;">⬆ Import data<input type="file" accept="application/json" onchange="importData(event)" style="display:none;"></label>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+          <button class="btn" style="border-color:var(--amber); color:var(--amber);" onclick="resetDemo()">Reset demo data</button>
+          <button class="btn" style="border-color:var(--red); color:var(--red);" onclick="resetAll()">Reset all data</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Generic Modal -->
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
+
+<script>
+/* ---------- STATE ---------- */
+const NAV = [
+  ['dashboard','01','Command Center'],['tasks','02','Tasks'],['university','03','University'],
+  ['career','04','Career'],['finance','05','Finance'],['projects','06','Projects'],
+  ['ai','07','AI Assistant'],['settings','08','Settings'],['data','09','Data Center'],['email','10','Email Intelligence'],['notifications','11','Notifications']
+];
+const STORE_KEY='jarvis_os_state_v1';
+const DATA_VERSION=1;
+function defaultState(){
+  return {
+    dataVersion:DATA_VERSION, lastSaved:null, email:emailDefault(), retention:retentionDefault(), notif:notifDefault(), history:[],
+    name:'Juan Pablo Gil Ornelas', mission:'Build a better version of yourself.',
+    currentFocus:'Dominar Claude Code', dailyObjective:'Avanzar un poco cada día',
+    semester:'7th Semester', uniProgressOverride:null,
+    tasks:[
+      {id:1,name:'Entregar avance de Matemáticas Financieras',category:'University',priority:'HIGH',date:'2026-09-26',status:'Pending',progress:40},
+      {id:2,name:'Preparar entrevista con empresa tech',category:'Career',priority:'CRITICAL',date:'2026-09-25',status:'Pending',progress:20},
+      {id:3,name:'Revisar presupuesto mensual',category:'Finance',priority:'MEDIUM',date:'2026-09-27',status:'Pending',progress:0},
+      {id:4,name:'Grabar guion del canal',category:'Projects',priority:'HIGH',date:'2026-09-28',status:'In Progress',progress:60},
+      {id:5,name:'Entrenar 45 min',category:'Personal',priority:'LOW',date:'2026-09-24',status:'Completed',progress:100},
+    ],
+    subjects:[
+      {name:'Matemáticas Financieras',teacher:'Prof. Reyes',progress:65},
+      {name:'Análisis de Datos',teacher:'Prof. Cano',progress:80},
+      {name:'Economía Internacional',teacher:'Prof. Ibarra',progress:50},
+      {name:'Administración',teacher:'Prof. Dávila',progress:70},
+      {name:'Cálculo para Negocios',teacher:'Prof. Ortiz',progress:45},
+      {name:'Comunicación Empresarial',teacher:'Prof. Salas',progress:90},
+    ],
+    uniItems:[
+      {id:1,title:'Examen parcial',subject:'Cálculo para Negocios',type:'Exam',due:'2026-09-30'},
+      {id:2,title:'Entrega de caso práctico',subject:'Administración',type:'Task',due:'2026-10-02'},
+    ],
+    career:[
+      {id:1,company:'Grupo Bimbo',position:'Analista Jr.',status:'Interview',date:'2026-09-10',next:'Entrevista técnica',notes:''},
+      {id:2,company:'BBVA',position:'Trainee Finanzas',status:'Applied',date:'2026-09-18',next:'Esperando respuesta',notes:''},
+      {id:3,company:'Startup local',position:'Growth Intern',status:'Offer',date:'2026-08-30',next:'Revisar oferta',notes:''},
+    ],
+    projects:[
+      {id:1,name:'JARVIS AI',progress:35,status:'Active',priority:'HIGH',next:'Conectar módulo de tareas'},
+      {id:2,name:'John Gil',progress:55,status:'Active',priority:'MEDIUM',next:'Editar próximo video'},
+      {id:3,name:'Roblox',progress:20,status:'Active',priority:'MEDIUM',next:'Diseñar nivel 2'},
+      {id:4,name:'Career Development',progress:40,status:'Active',priority:'HIGH',next:'Actualizar CV'},
+      {id:5,name:'Personal Development',progress:60,status:'Active',priority:'LOW',next:'Leer 20 páginas'},
+    ],
+    finance:{savings:42500, goal:150000, monthly:6500,
+      balances:{Cash:18000,CETES:12000,Investments:9500,Other:3000},
+      entries:[
+        {type:'Income',category:'Cash',amount:12000,date:'2026-09-01'},
+        {type:'Savings',category:'CETES',amount:3000,date:'2026-09-05'},
+        {type:'Expense',category:'Other',amount:1800,date:'2026-09-12'},
+        {type:'Investment',category:'Investments',amount:2500,date:'2026-09-20'},
+      ],
+      history:[28000,31000,33500,36000,38200,40000,42500]
+    }
+  };
+}
+function blankState(){
+  return { dataVersion:DATA_VERSION, lastSaved:null, email:emailDefault(), retention:retentionDefault(), notif:notifDefault(), history:[], name:S?S.name:'Me', mission:'', currentFocus:'', dailyObjective:'',
+    semester:'', uniProgressOverride:null, tasks:[], subjects:[], uniItems:[], career:[], projects:[],
+    finance:{savings:0, goal:0, monthly:0, balances:{Cash:0,CETES:0,Investments:0,Other:0}, entries:[], history:[0]} };
+}
+function loadState(){
+  try{ const s=JSON.parse(localStorage.getItem(STORE_KEY)); if(s){ if(!s.finance.balances) s.finance.balances={Cash:0,CETES:0,Investments:0,Other:0}; if(s.uniProgressOverride===undefined) s.uniProgressOverride=null; if(!s.email) s.email=emailDefault(); migrate(s); return s; } }catch(e){}
+  return defaultState();
+}
+let S = loadState();
+let saveRecovering=false;
+function persist(){ localStorage.setItem(STORE_KEY, JSON.stringify(S)); }
+function setStorageWarn(b){ const w=document.getElementById('storageWarn'); if(w) w.classList.toggle('hidden',!b); }
+function save(){
+  S.lastSaved=new Date().toISOString();
+  const ls=document.getElementById('lastSavedTxt'); if(ls) ls.textContent=new Date(S.lastSaved).toLocaleString();
+  try{ persist(); setStorageWarn(false); try{ schedulePushSync(); }catch(x){} }
+  catch(e){ // quota/storage error: only temporary notification/history records may be cleaned
+    if(saveRecovering){ setStorageWarn(true); return; }
+    saveRecovering=true; try{ runCleanup('quota'); }catch(x){} saveRecovering=false;
+    try{ persist(); setStorageWarn(false); }catch(e2){ setStorageWarn(true); }
+  }
+}
+
+/* ---------- BOOT ---------- */
+window.addEventListener('DOMContentLoaded', ()=>{
+  setTimeout(()=>{ document.getElementById('bootline2').style.opacity=1; }, 500);
+  setTimeout(()=>{
+    document.getElementById('boot').style.opacity=0;
+    setTimeout(()=>{ document.getElementById('boot').style.display='none'; document.getElementById('app').classList.add('show'); }, 500);
+  }, 1300);
+  buildNav(); renderAll(); tickClock(); setInterval(tickClock,1000); cleanupTick(); setInterval(cleanupTick,30*60*1000); registerSW(); routeHash();
+});
+
+/* ---------- NAV ---------- */
+function buildNav(){
+  const nav=document.getElementById('nav');
+  NAV.forEach(([id,num,label])=>{
+    const b=document.createElement('button'); b.className='navbtn'+(id==='dashboard'?' active':'');
+    b.innerHTML=`<span class="n">${num}</span> ${label}`;
+    b.onclick=()=>goto(id);
+    b.dataset.view=id;
+    nav.appendChild(b);
+  });
+}
+function goto(view){
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.dataset.view===view));
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+  document.getElementById('sidebar').classList.remove('open');
+  renderAll();
+}
+document.getElementById('menubtn').onclick=()=>document.getElementById('sidebar').classList.toggle('open');
+
+function tickClock(){
+  const d=new Date();
+  document.getElementById('clock').textContent = d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'})+' · '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  const h=d.getHours();
+  document.getElementById('greeting').textContent = (h<12?'GOOD MORNING, ':h<19?'GOOD AFTERNOON, ':'GOOD EVENING, ')+S.name.split(' ')[0].toUpperCase();
+}
+
+/* ---------- RENDER ALL ---------- */
+function renderAll(){ renderDash(); renderTasks(); renderUni(); renderCareer(); renderFinance(); renderProjects(); renderDataCenter(); renderEmail(); renderRetention(); renderNotif(); }
+
+/* DASHBOARD */
+function renderDash(){
+  const t=S.tasks, done=t.filter(x=>x.status==='Completed').length;
+  const pct = t.length? Math.round(done/t.length*100):0;
+  const top3 = [...t].filter(x=>x.status!=='Completed').sort((a,b)=>prVal(b.priority)-prVal(a.priority)).slice(0,3);
+  const uAvg = uniAvg();
+  const activeApps = S.career.filter(c=>!['Rejected','Offer'].includes(c.status)).length;
+  const interviews = S.career.filter(c=>c.status==='Interview').length;
+  const projAvg = Math.round(S.projects.reduce((s,x)=>s+x.progress,0)/S.projects.length);
+  document.getElementById('dashGrid').innerHTML = `
+    <div class="card"><h3>TODAY'S PRIORITIES</h3>
+      ${top3.map(x=>`<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px;"><span>${x.name}</span><span class="pill ${x.priority}">${x.priority}</span></div>`).join('') || '<p class="sub">All clear.</p>'}
+      <div class="bar"><div style="width:${pct}%"></div></div><div class="sub">${pct}% complete</div></div>
+    <div class="card"><h3>UNIVERSITY</h3><div class="big">${uAvg}%</div><div class="sub">${S.uniItems.length} upcoming deadlines</div><div class="bar"><div style="width:${uAvg}%"></div></div></div>
+    <div class="card"><h3>CAREER</h3><div class="big">${activeApps}</div><div class="sub">active applications · ${interviews} interviews upcoming</div></div>
+    <div class="card"><h3>FINANCE</h3><div class="big">$${S.finance.savings.toLocaleString()}</div><div class="sub">Goal $${S.finance.goal.toLocaleString()} · ${Math.round(S.finance.savings/S.finance.goal*100)}%</div><div class="bar"><div style="width:${Math.min(100,Math.round(S.finance.savings/S.finance.goal*100))}%"></div></div></div>
+    <div class="card"><h3>PROJECTS</h3><div class="big">${S.projects.length}</div><div class="sub">${projAvg}% average progress</div><div class="bar"><div style="width:${projAvg}%"></div></div></div>`;
+  const lt=document.getElementById('lastSavedTxt2'); if(lt) lt.textContent = S.lastSaved? new Date(S.lastSaved).toLocaleString() : 'not saved yet';
+}
+function prVal(p){ return {CRITICAL:4,HIGH:3,MEDIUM:2,LOW:1}[p]||0; }
+function uniAvg(){ if(S.uniProgressOverride!=null) return S.uniProgressOverride; return S.subjects.length? Math.round(S.subjects.reduce((s,x)=>s+x.progress,0)/S.subjects.length):0; }
+
+/* TASKS */
+function renderTasks(){
+  const cats=[...new Set(S.tasks.map(t=>t.category))];
+  const catSel=document.getElementById('taskFilterCat');
+  if(catSel.options.length<=1) cats.forEach(c=>catSel.insertAdjacentHTML('beforeend',`<option>${c}</option>`));
+  const prSel=document.getElementById('taskFilterPr');
+  if(prSel.options.length<=1) ['CRITICAL','HIGH','MEDIUM','LOW'].forEach(c=>prSel.insertAdjacentHTML('beforeend',`<option>${c}</option>`));
+
+  const search=document.getElementById('taskSearch').value.toLowerCase();
+  const fc=catSel.value, fp=prSel.value, sort=document.getElementById('taskSort').value;
+  let list=S.tasks.filter(t=> t.name.toLowerCase().includes(search) && (!fc||t.category===fc) && (!fp||t.priority===fp));
+  if(sort==='priority') list.sort((a,b)=>prVal(b.priority)-prVal(a.priority));
+  else if(sort==='name') list.sort((a,b)=>a.name.localeCompare(b.name));
+  else list.sort((a,b)=>a.date.localeCompare(b.date));
+
+  document.getElementById('taskTable').innerHTML = list.map(t=>`
+    <tr><td>${t.name}</td><td>${t.category}</td><td><span class="pill ${t.priority}">${t.priority}</span></td>
+    <td>${t.date}${t.time?' '+t.time:''}</td><td><select class="statsel" onchange="setTaskStatus(${t.id},this.value)">
+      ${['Pending','In Progress','Completed'].map(s=>`<option ${s===t.status?'selected':''}>${s}</option>`).join('')}</select></td>
+    <td><div class="bar" style="width:70px;margin:0;"><div style="width:${t.progress}%"></div></div></td>
+    <td><button class="rowbtn" onclick="openTaskModal(${t.id})">✎</button><button class="rowbtn" onclick="deleteTask(${t.id})">🗑</button></td></tr>`).join('');
+  document.getElementById('taskEmpty').classList.toggle('hidden', list.length>0);
+
+  const total=S.tasks.length, comp=S.tasks.filter(t=>t.status==='Completed').length;
+  const overdue=S.tasks.filter(t=>t.status!=='Completed' && t.date<new Date().toISOString().slice(0,10)).length;
+  document.getElementById('taskStats').innerHTML=[
+    ['TOTAL TASKS',total],['COMPLETED',comp],['PENDING',total-comp-overdue<0?0:total-comp],['OVERDUE',overdue]
+  ].map(([l,v])=>`<div class="card"><h3>${l}</h3><div class="big">${v}</div></div>`).join('');
+}
+function setTaskStatus(id,status){ const t=S.tasks.find(x=>x.id===id); t.status=status; if(status==='Completed') touchProject(t.projectId); t.progress = status==='Completed'?100:(status==='Pending'?0:t.progress||50); save(); renderTasks(); renderDash(); }
+function deleteTask(id){ S.tasks=S.tasks.filter(t=>t.id!==id); save(); renderTasks(); renderDash(); }
+function openTaskModal(id){
+  const t=id?S.tasks.find(x=>x.id===id):{name:'',desc:'',category:'Personal',priority:'MEDIUM',date:new Date().toISOString().slice(0,10),time:'',status:'Pending',progress:0,projectId:null,remind:null};
+  const r=t.remind||{h24:null,dayOf:null,extra:[]}, tri=(v,name)=>`<select id="${name}"><option value="" ${v===null?'selected':''}>Default (settings)</option><option value="1" ${v===true?'selected':''}>On</option><option value="0" ${v===false?'selected':''}>Off</option></select>`;
+  showModal(`${id?'Edit':'New'} Task`, `
+    <div class="field"><label>Name</label><input id="mf_name" value="${esc(t.name)}"></div>
+    <div class="field"><label>Description</label><textarea id="mf_desc" style="height:60px;">${esc(t.desc||'')}</textarea></div>
+    <div class="field"><label>Category</label><select id="mf_cat">${['University','Career','Finance','Personal','Projects'].map(c=>`<option ${c===t.category?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="field"><label>Priority</label><select id="mf_pr">${['CRITICAL','HIGH','MEDIUM','LOW'].map(c=>`<option ${c===t.priority?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="field"><label>Due date</label><input type="date" id="mf_date" value="${t.date}"></div>
+    <div class="field"><label>Time (optional)</label><input type="time" id="mf_time" value="${t.time||''}"></div>
+    <div class="field"><label>Related project</label><select id="mf_proj"><option value="">— none —</option>${S.projects.map(p=>`<option value="${p.id}" ${p.id===t.projectId?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div>
+    <div class="field"><label>Reminder 24h before</label>${tri(r.h24,'mf_rh24')}</div>
+    <div class="field"><label>Reminder on the due day</label>${tri(r.dayOf,'mf_rdo')}</div>
+    <div class="field"><label>Extra reminders (minutes before, comma separated, e.g. 60,180)</label><input id="mf_rx" value="${(r.extra||[]).join(',')}"></div>
+  `, ()=>{
+    const g=i=>document.getElementById(i).value, name=g('mf_name').trim(); if(!name)return;
+    const rv=v=>v===''?null:v==='1', extra=g('mf_rx').split(',').map(x=>parseInt(x)).filter(x=>x>0&&x<=10080).slice(0,5);
+    const data={name,desc:g('mf_desc'),category:g('mf_cat'),priority:g('mf_pr'),date:g('mf_date'),time:g('mf_time')||'',projectId:g('mf_proj')?Number(g('mf_proj')):null,remind:{h24:rv(g('mf_rh24')),dayOf:rv(g('mf_rdo')),extra}};
+    if(id){ Object.assign(t,data); } else { S.tasks.push({id:Date.now(),status:'Pending',progress:0,...data}); }
+    save(); renderTasks(); renderDash(); closeModal();
+  });
+}
+
+/* UNIVERSITY */
+function renderUni(){
+  const avg=uniAvg();
+  document.getElementById('uniProgressNum').textContent=avg+'%'+(S.uniProgressOverride!=null?' (manual)':'');
+  document.getElementById('uniProgressBar').style.width=avg+'%';
+  document.getElementById('uniSemesterTxt').textContent=S.semester||'—';
+  document.getElementById('subjectsGrid').innerHTML=S.subjects.map(s=>`
+    <div class="card"><h3>${s.name}</h3><div class="sub">${s.teacher}</div><div class="bar"><div style="width:${s.progress}%"></div></div><div class="sub">${s.progress}%</div></div>`).join('');
+  document.getElementById('uniTable').innerHTML=S.uniItems.sort((a,b)=>a.due.localeCompare(b.due)).map(u=>`
+    <tr><td>${u.title}</td><td>${u.subject}</td><td>${u.type}</td><td>${u.due}</td><td><button class="rowbtn" onclick="deleteUni(${u.id})">🗑</button></td></tr>`).join('');
+}
+function deleteUni(id){ S.uniItems=S.uniItems.filter(u=>u.id!==id); save(); renderUni(); }
+function openUniModal(){
+  showModal('Add University Item', `
+    <div class="field"><label>Title</label><input id="mf_title"></div>
+    <div class="field"><label>Subject</label><select id="mf_subj">${S.subjects.map(s=>`<option>${s.name}</option>`).join('')}</select></div>
+    <div class="field"><label>Type</label><select id="mf_type"><option>Task</option><option>Exam</option></select></div>
+    <div class="field"><label>Due date</label><input type="date" id="mf_due" value="${new Date().toISOString().slice(0,10)}"></div>
+  `, ()=>{
+    const title=document.getElementById('mf_title').value.trim(); if(!title)return;
+    S.uniItems.push({id:Date.now(),title,subject:document.getElementById('mf_subj').value,type:document.getElementById('mf_type').value,due:document.getElementById('mf_due').value});
+    save(); renderUni(); closeModal();
+  });
+}
+
+/* CAREER */
+const CAREER_STATUSES=['Applied','HR Screening','Interview','Assessment','Final Round','Offer','Rejected'];
+function renderCareer(){
+  document.getElementById('careerStats').innerHTML=[
+    ['ACTIVE APPLICATIONS',S.career.filter(c=>!['Offer','Rejected'].includes(c.status)).length],
+    ['INTERVIEWS',S.career.filter(c=>c.status==='Interview').length],
+    ['ASSESSMENTS',S.career.filter(c=>c.status==='Assessment').length],
+    ['OFFERS',S.career.filter(c=>c.status==='Offer').length],
+  ].map(([l,v])=>`<div class="card"><h3>${l}</h3><div class="big">${v}</div></div>`).join('');
+  document.getElementById('kanban').innerHTML=CAREER_STATUSES.map(st=>`
+    <div class="kcol"><h4>${st.toUpperCase()} <span>${S.career.filter(c=>c.status===st).length}</span></h4>
+    ${S.career.filter(c=>c.status===st).map(c=>`
+      <div class="kcard"><div class="co">${c.company}</div><div class="po">${c.position}</div><div class="po">${c.next||''}</div>
+      <select onchange="setCareerStatus(${c.id},this.value)">${CAREER_STATUSES.map(s=>`<option ${s===c.status?'selected':''}>${s}</option>`).join('')}</select></div>`).join('')}
+    </div>`).join('');
+}
+function setCareerStatus(id,status){ S.career.find(c=>c.id===id).status=status; save(); renderCareer(); renderDash(); }
+function openCareerModal(){
+  showModal('New Application', `
+    <div class="field"><label>Company</label><input id="mf_co"></div>
+    <div class="field"><label>Position</label><input id="mf_pos"></div>
+    <div class="field"><label>Status</label><select id="mf_st">${CAREER_STATUSES.map(s=>`<option>${s}</option>`).join('')}</select></div>
+    <div class="field"><label>Next step</label><input id="mf_next"></div>
+  `, ()=>{
+    const company=document.getElementById('mf_co').value.trim(); if(!company)return;
+    S.career.push({id:Date.now(),company,position:document.getElementById('mf_pos').value,status:document.getElementById('mf_st').value,date:new Date().toISOString().slice(0,10),next:document.getElementById('mf_next').value,notes:''});
+    save(); renderCareer(); renderDash(); closeModal();
+  });
+}
+
+/* FINANCE */
+function renderFinance(){
+  const f=S.finance;
+  document.getElementById('financeCards').innerHTML=[
+    ['TOTAL SAVINGS','$'+f.savings.toLocaleString()],['MONTHLY SAVINGS','$'+f.monthly.toLocaleString()],
+    ['FINANCIAL GOAL','$'+f.goal.toLocaleString()],['PROGRESS',Math.round(f.savings/f.goal*100)+'%']
+  ].map(([l,v])=>`<div class="card"><h3>${l}</h3><div class="big">${v}</div></div>`).join('');
+  document.getElementById('financeBalances').innerHTML=Object.entries(f.balances).map(([k,v])=>`<div class="card"><h3>${k.toUpperCase()}</h3><div class="big">$${v.toLocaleString()}</div></div>`).join('');
+  document.getElementById('financeTable').innerHTML=f.entries.slice().reverse().map(e=>`
+    <tr><td>${e.type}</td><td>${e.category}</td><td>$${e.amount.toLocaleString()}</td><td>${e.date}</td></tr>`).join('');
+  const svg=document.getElementById('financeChart'); const h=f.history; const max=Math.max(...h)*1.1, min=Math.min(...h)*0.9;
+  const pts=h.map((v,i)=>`${(i/(h.length-1))*580+10},${150-((v-min)/(max-min))*130}`).join(' ');
+  svg.innerHTML=`<polyline points="${pts}" fill="none" stroke="#49e0c8" stroke-width="2.5"/>${h.map((v,i)=>`<circle cx="${(i/(h.length-1))*580+10}" cy="${150-((v-min)/(max-min))*130}" r="3.5" fill="#49e0c8"/>`).join('')}`;
+}
+function openFinanceModal(){
+  showModal('Add Entry', `
+    <div class="field"><label>Type</label><select id="mf_ftype"><option>Income</option><option>Savings</option><option>Investment</option><option>Expense</option></select></div>
+    <div class="field"><label>Category</label><select id="mf_fcat"><option>Cash</option><option>CETES</option><option>Investments</option><option>Other</option></select></div>
+    <div class="field"><label>Amount</label><input type="number" id="mf_amt"></div>
+  `, ()=>{
+    const amount=parseFloat(document.getElementById('mf_amt').value); if(!amount)return;
+    const type=document.getElementById('mf_ftype').value;
+    S.finance.entries.push({type,category:document.getElementById('mf_fcat').value,amount,date:new Date().toISOString().slice(0,10)});
+    if(type==='Savings'||type==='Investment') S.finance.savings+=amount;
+    if(type==='Expense') S.finance.savings-=amount; logChange('finance','Finance entry added ('+type+')');
+    S.finance.history.push(S.finance.savings);
+    save(); renderFinance(); renderDash(); closeModal();
+  });
+}
+
+/* PROJECTS */
+function renderProjects(){
+  document.getElementById('projectsGrid').innerHTML=S.projects.map(p=>`
+    <div class="card"><h3>${p.name} <span class="pill ${p.priority}">${p.priority}</span></h3>
+    <div class="sub">${p.status} · Next: ${p.next||'—'}<br>${p.deadline?'Deadline '+p.deadline+' · ':''}${p.lastActivity?'Last activity '+daysAgo(p.lastActivity)+' d ago':'No activity data yet'}${projIdle(p)?' · <span style="color:var(--amber)">idle</span>':''}</div><div class="bar"><div style="width:${p.progress}%"></div></div>
+    <div class="sub" style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><span>${p.progress}%</span>
+    <span><button class="rowbtn" onclick="openProjectModal(${p.id})">✎</button><button class="rowbtn" onclick="deleteProject(${p.id})">🗑</button></span></div></div>`).join('');
+}
+function deleteProject(id){ S.projects=S.projects.filter(p=>p.id!==id); save(); renderProjects(); renderDash(); }
+function openProjectModal(id){
+  const p = id? S.projects.find(x=>x.id===id) : {name:'',status:'Active',priority:'MEDIUM',progress:0,next:''};
+  showModal(`${id?'Edit':'New'} Project`, `
+    <div class="field"><label>Name</label><input id="mf_pname" value="${p.name}"></div>
+    <div class="field"><label>Status</label><select id="mf_pstat">${['Active','On Hold','Completed'].map(s=>`<option ${s===p.status?'selected':''}>${s}</option>`).join('')}</select></div>
+    <div class="field"><label>Priority</label><select id="mf_ppr">${['CRITICAL','HIGH','MEDIUM','LOW'].map(pr=>`<option ${pr===p.priority?'selected':''}>${pr}</option>`).join('')}</select></div>
+    <div class="field"><label>Progress %</label><input type="number" min="0" max="100" id="mf_pprog" value="${p.progress}"></div>
+    <div class="field"><label>Next action</label><input id="mf_pnext" value="${p.next}"></div>
+    <div class="field"><label>Deadline (optional)</label><input type="date" id="mf_pdl" value="${p.deadline||''}"></div>
+  `, ()=>{
+    const name=document.getElementById('mf_pname').value.trim(); if(!name)return;
+    const data={name,status:document.getElementById('mf_pstat').value,priority:document.getElementById('mf_ppr').value,progress:Math.max(0,Math.min(100,parseInt(document.getElementById('mf_pprog').value)||0)),next:document.getElementById('mf_pnext').value,deadline:document.getElementById('mf_pdl').value||null,lastActivity:new Date().toISOString()};
+    if(id){ Object.assign(p,data); } else { S.projects.push({id:Date.now(),...data}); }
+    save(); renderProjects(); renderDash(); closeModal();
+  });
+}
+
+/* AI ASSISTANT (simulated, local pattern-matching — no external API) */
+function termPush(role,text){ const b=document.getElementById('termbody'); const d=document.createElement('div'); d.className='termline '+role; d.textContent=text; b.appendChild(d); b.scrollTop=b.scrollHeight; }
+termPush('ai','JARVIS AI Core initialized. No external AI connection yet — but a set of commands (update savings, financial goal, academic progress, add an application, add a project, mark a task complete) directly edit your local data. Everything else is answered by reading your current data.');
+function askPreset(q){ document.getElementById('terminput').value=q; handleAsk(); }
+document.getElementById('terminput').addEventListener('keydown',e=>{ if(e.key==='Enter') handleAsk(); });
+function handleAsk(){
+  const inp=document.getElementById('terminput'); const q=inp.value.trim(); if(!q)return;
+  termPush('user',q); inp.value='';
+  const cmdResult = tryCommand(q);
+  termPush('ai', cmdResult || generateReply(q));
+}
+function generateReply(q){
+  const ql=q.toLowerCase();
+  const pending=S.tasks.filter(t=>t.status!=='Completed').sort((a,b)=>prVal(b.priority)-prVal(a.priority));
+  if(/prime|priorit|primero/.test(ql)) return pending.length? `Your top priority is "${pending[0].name}" (${pending[0].priority}, due ${pending[0].date}). After that: ${pending.slice(1,3).map(t=>t.name).join(', ')||'nothing else pending'}.` : 'No pending tasks — you are clear.';
+  if(/organiza|plan|semana|día|day/.test(ql)) return `Suggested order for today:\n${pending.slice(0,4).map((t,i)=>`${i+1}. ${t.name} (${t.priority})`).join('\n')||'No pending tasks today.'}`;
+  if(/analiza|pendient|analyz/.test(ql)) return `You have ${pending.length} pending task(s). ${pending.filter(t=>t.priority==='CRITICAL').length} are CRITICAL. Overdue: ${S.tasks.filter(t=>t.status!=='Completed'&&t.date<new Date().toISOString().slice(0,10)).length}.`;
+  if(/entrevista|interview/.test(ql)){ const iv=S.career.filter(c=>c.status==='Interview'); return iv.length? `You have ${iv.length} interview(s) in progress: ${iv.map(c=>c.company+' — '+c.position).join(', ')}. Review the role, prepare 2-3 STAR stories, and confirm logistics the night before.` : 'No interviews scheduled right now — focus on getting more applications into the pipeline.'; }
+  if(/financ|dinero|ahorro/.test(ql)) return `You've saved $${S.finance.savings.toLocaleString()} of your $${S.finance.goal.toLocaleString()} goal (${Math.round(S.finance.savings/S.finance.goal*100)}%). Monthly savings rate: $${S.finance.monthly.toLocaleString()}.`;
+  if(/proyecto|project/.test(ql)) return `Active projects: ${S.projects.map(p=>`${p.name} (${p.progress}%)`).join(', ')}.`;
+  if(/descuid|neglect/.test(ql)){ const stale=S.tasks.filter(t=>t.status==='Pending'&&t.progress===0); return stale.length? `These haven't been touched yet: ${stale.map(t=>t.name).join(', ')}.` : 'Nothing looks neglected right now.'; }
+  return `Noted: "${q}". This V1 engine reads your local Tasks, Career, Finance and Projects data to answer. Deeper reasoning will connect once JARVIS OS links to Claude.`;
+}
+
+/* SETTINGS */
+function saveSettings(){ S.name=document.getElementById('setName').value||S.name; S.mission=document.getElementById('setMission').value||S.mission; save(); renderAll(); }
+
+/* ---------- DATA CENTER (single source of truth for every editable value) ---------- */
+function editVal(label, currentValue, onSave, type){
+  showModal(`Edit ${label}`, `<div class="field"><label>${label}</label><input id="mf_ev" type="${type||'text'}" value="${currentValue}"></div>`, ()=>{
+    const raw=document.getElementById('mf_ev').value;
+    const val = type==='number' ? (raw.trim()===''? '' : (parseFloat(raw)||0)) : raw;
+    onSave(val); logChange('data',label.split(' (')[0]+' updated'); save(); renderAll(); closeModal();
+  });
+}
+function renderDataCenter(){
+  document.getElementById('dcVersion').textContent = S.dataVersion;
+  const ls=document.getElementById('lastSavedTxt'); if(ls) ls.textContent = S.lastSaved? new Date(S.lastSaved).toLocaleString() : 'not saved yet';
+
+  document.getElementById('dcPersonal').innerHTML = [
+    ['Name', S.name, v=>S.name=v, 'text'],
+    ['Main Goal', S.mission, v=>S.mission=v, 'text'],
+    ['Current Focus', S.currentFocus||'', v=>S.currentFocus=v, 'text'],
+    ['Daily Objective', S.dailyObjective||'', v=>S.dailyObjective=v, 'text'],
+  ].map(([l,v,setter,type])=>dcCard(l, v||'—', l, v, setter, type)).join('');
+
+  const f=S.finance;
+  document.getElementById('dcFinance').innerHTML = [
+    ['Total Savings', f.savings, v=>f.savings=v, 'number', '$'+f.savings.toLocaleString()],
+    ['Monthly Savings', f.monthly, v=>f.monthly=v, 'number', '$'+f.monthly.toLocaleString()],
+    ['Financial Goal', f.goal, v=>f.goal=v, 'number', '$'+f.goal.toLocaleString()],
+    ['Cash', f.balances.Cash, v=>f.balances.Cash=v, 'number', '$'+f.balances.Cash.toLocaleString()],
+    ['CETES', f.balances.CETES, v=>f.balances.CETES=v, 'number', '$'+f.balances.CETES.toLocaleString()],
+    ['Investments', f.balances.Investments, v=>f.balances.Investments=v, 'number', '$'+f.balances.Investments.toLocaleString()],
+    ['Other', f.balances.Other, v=>f.balances.Other=v, 'number', '$'+f.balances.Other.toLocaleString()],
+  ].map(([l,raw,setter,type,disp])=>dcCard(l, disp, l, raw, setter, type)).join('');
+
+  document.getElementById('dcCareer').innerHTML = [
+    ['Active Applications', S.career.filter(c=>!['Offer','Rejected'].includes(c.status)).length],
+    ['Interviews', S.career.filter(c=>c.status==='Interview').length],
+    ['Assessments', S.career.filter(c=>c.status==='Assessment').length],
+    ['Offers', S.career.filter(c=>c.status==='Offer').length],
+  ].map(([l,v])=>`<div class="card"><h3>${l}</h3><div class="big">${v}</div></div>`).join('');
+
+  document.getElementById('dcUniversity').innerHTML =
+    dcCard('Current Semester', S.semester||'—', 'Current Semester', S.semester||'', v=>S.semester=v, 'text') +
+    dcCard('Academic Progress', uniAvg()+'%'+(S.uniProgressOverride!=null?' (manual)':' (auto)'), 'Academic Progress % (leave blank to auto-calculate from subjects)', S.uniProgressOverride!=null?S.uniProgressOverride:'', v=>{ S.uniProgressOverride = (v===''||v===0&&String(v).trim()==='') ? null : v; }, 'number');
+  document.getElementById('dcSubjects').innerHTML = S.subjects.map((s,i)=>`
+    <tr><td>${s.name}</td><td><input type="number" min="0" max="100" value="${s.progress}" style="width:70px;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 6px;" onchange="setSubjectProgress(${i},this.value)"></td>
+    <td><button class="rowbtn" onclick="deleteSubject(${i})">🗑</button></td></tr>`).join('') +
+    `<tr><td colspan="3"><button class="btn" style="margin-top:8px;" onclick="addSubject()">+ Add subject</button></td></tr>`;
+
+  document.getElementById('dcProjects').innerHTML = S.projects.map(p=>`
+    <div class="card"><h3>${p.name}</h3><div class="sub">${p.progress}% · ${p.status}</div><button class="btn" style="margin-top:8px;" onclick="openProjectModal(${p.id})">✏️ Edit</button></div>`).join('')
+    + `<div class="card" style="display:flex;align-items:center;justify-content:center;"><button class="btn primary" onclick="openProjectModal()">+ New Project</button></div>`;
+}
+function dcCard(title, displayVal, editLabel, editCurrent, setter, type){
+  return `<div class="card"><h3>${title}</h3><div class="big" style="font-size:18px;">${displayVal}</div>
+    <button class="btn" style="margin-top:10px; font-size:11.5px; padding:6px 10px;" onclick='editValProxy(${JSON.stringify(editLabel)})'>✏️ Edit</button></div>`;
+}
+/* editValProxy re-derives the setter at click time so we don't serialize functions into HTML */
+const DC_SETTERS = {};
+function registerSetter(label, currentGetter, setter, type){ DC_SETTERS[label] = {currentGetter, setter, type}; }
+function editValProxy(label){ const d=DC_SETTERS[label]; if(!d) return; editVal(label, d.currentGetter(), d.setter, d.type); }
+
+/* Register setters (kept simple, in sync with renderDataCenter fields) */
+function registerAllSetters(){
+  registerSetter('Name', ()=>S.name, v=>S.name=v, 'text');
+  registerSetter('Main Goal', ()=>S.mission, v=>S.mission=v, 'text');
+  registerSetter('Current Focus', ()=>S.currentFocus||'', v=>S.currentFocus=v, 'text');
+  registerSetter('Daily Objective', ()=>S.dailyObjective||'', v=>S.dailyObjective=v, 'text');
+  registerSetter('Total Savings', ()=>S.finance.savings, v=>S.finance.savings=v, 'number');
+  registerSetter('Monthly Savings', ()=>S.finance.monthly, v=>S.finance.monthly=v, 'number');
+  registerSetter('Financial Goal', ()=>S.finance.goal, v=>S.finance.goal=v, 'number');
+  registerSetter('Cash', ()=>S.finance.balances.Cash, v=>S.finance.balances.Cash=v, 'number');
+  registerSetter('CETES', ()=>S.finance.balances.CETES, v=>S.finance.balances.CETES=v, 'number');
+  registerSetter('Investments', ()=>S.finance.balances.Investments, v=>S.finance.balances.Investments=v, 'number');
+  registerSetter('Other', ()=>S.finance.balances.Other, v=>S.finance.balances.Other=v, 'number');
+  registerSetter('Current Semester', ()=>S.semester||'', v=>S.semester=v, 'text');
+  registerSetter('Academic Progress % (leave blank to auto-calculate from subjects)', ()=>S.uniProgressOverride!=null?S.uniProgressOverride:'', v=>{ S.uniProgressOverride = (v===''||v===null) ? null : v; }, 'number');
+}
+registerAllSetters();
+function setSubjectProgress(i,val){ S.subjects[i].progress=Math.max(0,Math.min(100,parseInt(val)||0)); save(); renderAll(); }
+function deleteSubject(i){ S.subjects.splice(i,1); save(); renderAll(); }
+function addSubject(){ showModal('Add Subject', `<div class="field"><label>Subject name</label><input id="mf_sname"></div><div class="field"><label>Teacher</label><input id="mf_steach"></div>`, ()=>{
+    const name=document.getElementById('mf_sname').value.trim(); if(!name)return;
+    S.subjects.push({name,teacher:document.getElementById('mf_steach').value,progress:0}); save(); renderAll(); closeModal();
+  });
+}
+
+/* EXPORT / IMPORT / RESET */
+function exportData(){
+  const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=`jarvis-os-backup-${new Date().toISOString().slice(0,10)}.json`; a.click();
+  URL.revokeObjectURL(url);
+}
+function importData(evt){
+  const file=evt.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.finance || !data.tasks) throw new Error('invalid');
+      if(!data.finance.balances) data.finance.balances={Cash:0,CETES:0,Investments:0,Other:0}; if(!data.email) data.email=emailDefault(); migrate(data);
+      S=data; save(); renderAll(); alert('Data imported successfully.');
+    }catch(err){ alert('This file could not be read as a JARVIS OS backup.'); }
+  };
+  reader.readAsText(file); evt.target.value='';
+}
+function resetDemo(){ if(confirm('Restore the original demo dataset? Your current data will be replaced.')){ const em=S.email, rt=S.retention, nt=S.notif; S=defaultState(); S.email=em; S.retention=rt; S.notif=nt; save(); renderAll(); } }
+function resetAll(){ if(confirm('This will permanently erase ALL your JARVIS OS data (tasks, finance, career, university, projects). This cannot be undone unless you have an exported backup. Continue?')){ S=blankState(); save(); renderAll(); } }
+
+/* AI COMMANDS — real, local state mutations (regex-based, no external AI) */
+function tryCommand(q){
+  const ql=q.toLowerCase();
+  let m;
+  if(m=ql.match(/ahorro[s]?\s*a\s*\$?([\d.,]+)/) || (/(actualiza|cambia).*ahorro/.test(ql) && (m=ql.match(/([\d.,]+)/)))){
+    const val=parseFloat(m[1].replace(/,/g,'')); S.finance.savings=val; S.finance.history.push(val); save(); renderAll();
+    return `Total Savings updated to $${val.toLocaleString()}. Dashboard, Finance and goal progress are now in sync.`;
+  }
+  if(/meta financiera|financial goal/.test(ql) && (m=ql.match(/([\d.,]+)/))){
+    const val=parseFloat(m[1].replace(/,/g,'')); S.finance.goal=val; save(); renderAll();
+    return `Financial Goal updated to $${val.toLocaleString()}. Progress recalculated: ${Math.round(S.finance.savings/val*100)}%.`;
+  }
+  if(/progreso acad[eé]mico/.test(ql) && (m=ql.match(/(\d{1,3})/))){
+    const val=Math.max(0,Math.min(100,parseInt(m[1]))); S.uniProgressOverride=val; save(); renderAll();
+    return `Academic Progress manually set to ${val}%. It will stay fixed until you clear it in Data Center.`;
+  }
+  if(m=ql.match(/aplicaci[oó]n a ([a-z0-9áéíóúñ .]+)/i)){
+    const company=m[1].trim(); S.career.push({id:Date.now(),company,position:'—',status:'Applied',date:new Date().toISOString().slice(0,10),next:'Follow up',notes:''}); save(); renderAll();
+    return `Added a new Applied application to "${company}" in Career.`;
+  }
+  if(m=ql.match(/proyecto llamado ([a-z0-9áéíóúñ .]+)/i)){
+    const name=m[1].trim(); S.projects.push({id:Date.now(),name,progress:0,status:'Active',priority:'MEDIUM',next:''}); save(); renderAll();
+    return `Created project "${name}" with 0% progress.`;
+  }
+  if(/marca (esta|la) tarea|mark.*task.*complet/.test(ql)){
+    const pending=S.tasks.filter(t=>t.status!=='Completed').sort((a,b)=>prVal(b.priority)-prVal(a.priority));
+    if(!pending.length) return 'No pending tasks to mark as completed.';
+    pending[0].status='Completed'; pending[0].progress=100; save(); renderAll();
+    return `Marked "${pending[0].name}" as Completed.`;
+  }
+  return null;
+}
+
+/* MODAL */
+function showModal(title, fieldsHtml, onSave){
+  document.getElementById('modalBox').innerHTML = `<h3>${title}</h3>${fieldsHtml}<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="modalSave">Save</button></div>`;
+  document.getElementById('modalSave').onclick=onSave;
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+document.getElementById('modalBg').addEventListener('click',e=>{ if(e.target.id==='modalBg') closeModal(); });
+
+/* ---------- EMAIL INTELLIGENCE (read-only; data arrives only by importing the Apps Script digest) ---------- */
+const EM_CATS=['CAREER','FINANCE','UNIVERSITY','PERSONAL','SECURITY','GENERAL'];
+function emailDefault(){ return {alerts:[],deletedIds:[],account:null,mask:true,lastRun:null,lastImport:null,scanned:0,status:null,error:null,
+  config:{expectedAccount:'juanpagil27@gmail.com',intervalMinutes:15,minPriority:'MEDIUM',display:'C',quietStart:23,quietEnd:7,telegramHigh:true,dailyDigest:true,digestHour:20,
+  prioritySenders:[],active:['CAREER','FINANCE','UNIVERSITY','SECURITY','PERSONAL'],
+  keywords:{
+   CAREER:['recruit','interview','entrevista','job offer','oferta de trabajo','application','postulación','assessment','evaluación','hiring','vacante','recursos humanos','human resources','documents required','documentos requeridos'],
+   FINANCE:['payment','pago','transaction','transacción','statement','estado de cuenta','investment','inversión','cetes','bank','banco','payment due','fecha de pago','confirmación'],
+   UNIVERSITY:['assignment','tarea','exam','examen','profesor','professor','proyecto','project','submission','entrega','universidad','university','aviso académico'],
+   SECURITY:['security alert','alerta de seguridad','sign-in','inicio de sesión','password','contraseña','verification code','código de verificación','suspicious','actividad sospechosa'],
+   PERSONAL:[]},
+  actionWords:['deadline','fecha límite','vence','due','required','requerido','invitation','invitación','confirm','confirmar']}}; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function emStatus(){
+  const e=S.email;
+  if(e.lastRun && e.account && e.account.toLowerCase()!==String(e.config.expectedAccount).toLowerCase()) return ['ERROR','The script read a different Google account ('+e.account+'). Expected '+e.config.expectedAccount+'.','var(--red)'];
+  if(e.lastRun && !e.account) return ['NOT CONNECTED','The digest did not say which Google account was read. Update the script to the latest version.','var(--muted)'];
+  if(!e.lastRun || isNaN(new Date(e.lastRun))) return ['NOT CONNECTED','No real Gmail digest has been imported yet. Missing: install and authorize the Apps Script, then import its digest (Setup Guide below).','var(--muted)'];
+  if(e.status==='error') return ['ERROR',e.error||'The script reported an error. Check its Executions panel.','var(--red)'];
+  if(e.status==='needs_authorization') return ['NEEDS AUTHORIZATION','The script reported it needs authorization. Run it manually in Apps Script and accept the permissions.','var(--amber)'];
+  if((Date.now()-new Date(e.lastRun))/36e5 > Math.max(2,e.config.intervalMinutes*4/60)) return ['DISCONNECTED','The script has not reported recently, or you have not re-imported. Last successful run shown above.','var(--amber)'];
+  return ['CONNECTED','Digest imported manually from your Apps Script. Not live: re-import to refresh.','var(--accent)'];
+}
+function renderEmail(){
+  const e=S.email, [st,msg,col]=emStatus(), A=e.alerts.filter(a=>a.state!=='archived'), ALL=e.alerts, real=A.filter(a=>!a.demo);
+  document.getElementById('emStatus').innerHTML=`<h3>CONNECTION <span class="mono" style="color:${col};font-size:12px;">● ${st}</span></h3><div class="sub">${esc(msg)}</div>
+   <div class="sub" style="margin-top:6px;">Last script run: ${e.lastRun?esc(new Date(e.lastRun).toLocaleString()):'—'} · Last import: ${e.lastImport?esc(new Date(e.lastImport).toLocaleString()):'—'} · Messages in last run: ${e.scanned||0}${A.some(a=>a.demo)?' · <span class="demo">SAMPLE DATA LOADED</span>':''}</div>`;
+  const n=c=>A.filter(a=>a.category===c).length;
+  document.getElementById('emStats').innerHTML=[['EMAILS DETECTED',A.length],['IMPORTANT (HIGH)',A.filter(a=>a.priority==='HIGH').length],['PENDING ALERTS',A.filter(a=>a.processing!=='attended'&&a.priority!=='LOW').length],['CAREER',n('CAREER')],['FINANCE',n('FINANCE')],['UNIVERSITY',n('UNIVERSITY')]].map(([l,v])=>`<div class="card"><h3>${l}</h3><div class="big">${v}</div></div>`).join('');
+  const f=document.getElementById('emFilter').value, rows=ALL.filter(a=>(!f||a.category===f)&&((a.state==='archived')===!!document.getElementById('emArch').checked));
+  document.getElementById('emTable').innerHTML=rows.map(a=>`<tr style="${a.processing==='attended'?'opacity:.45':''}"><td><span class="pill ${a.priority}">${a.priority}</span></td><td>${a.category}${a.demo?' <span class="demo">SAMPLE</span>':''}</td><td>${esc(a.sender)}</td><td>${sens(a)?'🔒 Sensitive email — open in Gmail to read':esc(a.subject)}${a.deadline?`<br><span class="sub">Date in subject: ${esc(a.deadline)}</span>`:''}</td><td>${esc(a.receivedAt.slice(0,16).replace('T',' '))}</td><td class="sub">${esc(a.reason)}<br>${esc(a.recommendedAction)}</td><td>${a.gmailUrl.indexOf('https://mail.google.com/')===0?`<a href="${esc(a.gmailUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">Open</a> `:''}<button class="rowbtn" onclick="emAttend('${esc(a.emailId)}')">${a.processing==='attended'?'↺':'✓'}</button><button class="rowbtn" title="Link to a pending task (protects it from cleanup)" onclick="emLink('${esc(a.emailId)}')">🔗</button><button class="rowbtn" title="Archive / restore" onclick="emArchive('${esc(a.emailId)}')">🗄</button></td></tr>`).join('');
+  document.getElementById('emEmpty').classList.toggle('hidden',rows.length>0);
+  emRenderSettings(); renderPrivacy();
+}
+function emRenderSettings(){
+  const c=S.email.config, ae=document.activeElement; if(ae&&ae.id&&ae.id.indexOf('em_')===0&&document.getElementById('emSettings').contains(ae)) return;
+  const fld=(l,id,v,t)=>`<div class="field"><label>${l}</label><input id="${id}" type="${t||'text'}" value="${esc(v)}" onchange="emSaveCfg()"></div>`;
+  const sel=(l,id,opts,v)=>`<div class="field"><label>${l}</label><select id="${id}" onchange="emSaveCfg()">${opts.map(([k,t])=>`<option value="${k}" ${String(k)===String(v)?'selected':''}>${t}</option>`).join('')}</select></div>`;
+  const chk=(l,id,v)=>`<label style="display:block;font-size:12.5px;margin:6px 0;"><input type="checkbox" id="${id}" ${v?'checked':''} onchange="emSaveCfg()"> ${l}</label>`;
+  document.getElementById('emSettings').innerHTML=`<div class="grid" style="margin-top:0;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">
+   <div>${fld('Priority senders (comma separated; match by address/name)','em_ps',c.prioritySenders.join(', '))}
+   ${sel('Minimum priority for external notifications','em_min',[['LOW','LOW'],['MEDIUM','MEDIUM'],['HIGH','HIGH']],c.minPriority)}
+   ${sel('Notification content','em_disp',[['A','A · sender + subject'],['B','B · sender, subject, category'],['C','C · category only (no sensitive details)']],c.display)}
+   ${sel('Check frequency (minutes)','em_int',[[5,'5'],[10,'10'],[15,'15'],[30,'30']],c.intervalMinutes)}
+   ${fld('Quiet hours start (0-23)','em_qs',c.quietStart,'number')}${fld('Quiet hours end (0-23)','em_qe',c.quietEnd,'number')}
+   ${chk('Individual Telegram alert for HIGH (only if Telegram is configured in the script)','em_tg',c.telegramHigh)}
+   ${chk('Daily digest (MEDIUM and up, from emails the script saw)','em_dd',c.dailyDigest)}${fld('Digest hour (0-23)','em_dh',c.digestHour,'number')}
+   <div class="sub">Defaults: HIGH → individual alert · MEDIUM → daily digest · LOW → logged here only.</div></div>
+   <div><div class="field"><label>Active categories</label>${['CAREER','FINANCE','UNIVERSITY','SECURITY','PERSONAL'].map(k=>chk(k,'em_a_'+k,c.active.includes(k))).join('')}</div>
+   ${['CAREER','FINANCE','UNIVERSITY','SECURITY','PERSONAL'].map(k=>fld('Keywords · '+k,'em_k_'+k,(c.keywords[k]||[]).join(', '))).join('')}
+   ${fld('Action words (raise priority to HIGH)','em_aw',c.actionWords.join(', '))}</div></div>
+   <div class="field" style="margin-top:12px;"><label>CONFIG for the script — copy into Script Properties as CONFIG (contains no secrets)</label><textarea id="emCfgOut" readonly onclick="this.select()" style="width:100%;height:70px;background:#05070a;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11px;">${esc(JSON.stringify(c))}</textarea></div>`;
+}
+function emSaveCfg(){
+  const c=S.email.config, g=id=>document.getElementById(id), list=s=>s.split(',').map(x=>x.trim()).filter(Boolean), hr=v=>Math.max(0,Math.min(23,parseInt(v)||0));
+  c.prioritySenders=list(g('em_ps').value); c.minPriority=g('em_min').value; c.display=g('em_disp').value; c.intervalMinutes=+g('em_int').value;
+  c.quietStart=hr(g('em_qs').value); c.quietEnd=hr(g('em_qe').value); c.telegramHigh=g('em_tg').checked; c.dailyDigest=g('em_dd').checked; c.digestHour=hr(g('em_dh').value);
+  c.active=['CAREER','FINANCE','UNIVERSITY','SECURITY','PERSONAL'].filter(k=>g('em_a_'+k).checked);
+  ['CAREER','FINANCE','UNIVERSITY','SECURITY','PERSONAL'].forEach(k=>c.keywords[k]=list(g('em_k_'+k).value)); c.actionWords=list(g('em_aw').value);
+  save(); g('emCfgOut').value=JSON.stringify(c);
+}
+function emAttend(id){ const a=S.email.alerts.find(x=>x.emailId===id); if(a){ a.processing=a.processing==='attended'?'new':'attended'; save(); renderEmail(); } }
+function emClear(){ if(confirm('Remove all imported email alerts from JARVIS OS? (Your Gmail is not touched.)')){ const c=S.email.config; S.email=emailDefault(); S.email.config=c; save(); renderEmail(); } }
+function emSample(){
+  const e=S.email; if(e.alerts.some(a=>!a.demo)){ alert('Real imported emails exist; sample data was not added.'); return; }
+  const now=new Date().toISOString(), mk=(i,s,sub,cat,pr,why)=>({eventId:'DEMO-EV-'+i,emailId:'DEMO-'+i,sender:s,subject:sub,receivedAt:now,category:cat,priority:pr,reason:why,summary:'SAMPLE: not a real email.',recommendedAction:'Sample only.',deadline:null,gmailUrl:'',processing:'new',notification:'none',demo:true});
+  e.alerts=[mk(1,'recruiter@example.invalid','[SAMPLE] Interview invitation','CAREER','HIGH','sample'),mk(2,'bank@example.invalid','[SAMPLE] Monthly statement','FINANCE','MEDIUM','sample'),mk(3,'prof@example.invalid','[SAMPLE] Assignment submission','UNIVERSITY','MEDIUM','sample'),mk(4,'news@example.invalid','[SAMPLE] Weekly newsletter','GENERAL','LOW','sample')];
+  save(); renderEmail();
+}
+function emOpenImport(){ showModal('Import Gmail digest','<div class="field"><label>Paste the JSON from your Apps Script web app</label><textarea id="mf_dig" style="height:160px;font-family:\'JetBrains Mono\',monospace;font-size:11px;"></textarea></div>',()=>{ if(emImport(document.getElementById('mf_dig').value)) closeModal(); }); }
+function emImportFile(ev){ const f=ev.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=x=>emImport(x.target.result); r.readAsText(f); ev.target.value=''; }
+function emImport(txt){
+  let d; try{ d=JSON.parse(txt); }catch(x){ alert('Not valid JSON.'); return false; }
+  if(!d||d.source!=='jarvis-gmail-readonly'||!Array.isArray(d.alerts)){ alert('This is not a JARVIS Gmail digest.'); return false; }
+  const e=S.email, str=(v,n)=>typeof v==='string'?v.slice(0,n):''; e.alerts=e.alerts.filter(a=>!a.demo);
+  const have=new Set(e.alerts.map(a=>a.emailId));
+  d.alerts.forEach(a=>{ if(!a||!a.emailId||have.has(a.emailId)||(e.deletedIds||[]).includes(a.emailId)) return; have.add(a.emailId);
+    e.alerts.push({eventId:str(a.eventId,80),emailId:str(a.emailId,80),sender:str(a.sender,200),subject:redact(str(a.subject,300)),receivedAt:str(a.receivedAt,40),category:EM_CATS.includes(a.category)?a.category:'GENERAL',priority:['HIGH','MEDIUM','LOW'].includes(a.priority)?a.priority:'LOW',reason:str(a.reason,300),recommendedAction:str(a.recommendedAction,300),deadline:a.deadline?str(a.deadline,40):null,gmailUrl:str(a.gmailUrl,200),processing:'new',notification:str(a.notification,40),state:'active',taskId:null}); });
+  e.alerts.sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt)); e.alerts=e.alerts.slice(0,500);
+  e.lastRun=!isNaN(new Date(d.lastRun))?d.lastRun:null; e.status=str(d.status,30)||'ok'; e.error=d.error?str(d.error,300):null; e.scanned=+d.scanned||0; e.account=str(d.account,120)||null; e.lastImport=new Date().toISOString();
+  save(); renderAll(); return true;
+}
+
+/* ---------- DATA RETENTION & CLEANUP (only temporary notification/history records; never main data) ---------- */
+function retentionDefault(){ return {auto:true,routineRead:7,routineUnread:30,importantRead:30,importantUnread:90,financial:90,history:90,archiveDays:30,preserveUnreadImportant:true,frequencyHours:24,last:null}; }
+function migrate(s){
+  if(!s.retention) s.retention=retentionDefault(); if(!s.notif) s.notif=notifDefault(); if(!Array.isArray(s.history)) s.history=[];
+  const e=s.email; if(!Array.isArray(e.deletedIds)) e.deletedIds=[]; if(e.mask===undefined) e.mask=true;
+  if(!e.config.expectedAccount) e.config.expectedAccount='juanpagil27@gmail.com';
+  e.alerts.forEach(a=>{ if(!a.state) a.state='active'; if(a.taskId===undefined) a.taskId=null; delete a.summary; });
+}
+function logChange(kind,text){ S.history.push({t:new Date().toISOString(),k:kind,x:text}); if(S.history.length>500) S.history.splice(0,S.history.length-500); }
+function redact(s){ return s.replace(/\d{8,}/g,'••••'); }
+function sens(a){ return S.email.mask!==false && (a.category==='FINANCE'||a.category==='SECURITY'); }
+function planCleanup(now){
+  const r=S.retention, DAY=864e5, del=[], arc=[];
+  const pending=id=>S.tasks.some(t=>t.id===id&&t.status!=='Completed');
+  S.email.alerts.forEach(a=>{
+    if(a.taskId&&pending(a.taskId)) return;                       // tied to a pending task: protected
+    if(a.state==='archived'){ const at=Date.parse(a.archivedAt||a.receivedAt); if(!isNaN(at)&&now-at>r.archiveDays*DAY) del.push(a); return; }
+    const read=a.processing==='attended', imp=a.priority==='HIGH', t=Date.parse(a.receivedAt);
+    if(isNaN(t)) return;
+    if(imp&&!read&&r.preserveUnreadImportant) return;             // unread important alerts: protected
+    const days=a.category==='FINANCE'?r.financial:imp?(read?r.importantRead:r.importantUnread):(read?r.routineRead:r.routineUnread);
+    if((now-t)/DAY>days) (imp?arc:del).push(a);                    // important -> ARCHIVED first; routine -> DELETED
+  });
+  return {del,arc,old:S.history.filter(x=>now-Date.parse(x.t)>r.history*DAY)};
+}
+function runCleanup(mode){
+  const r=S.retention, res={at:new Date().toISOString(),mode:mode,deleted:0,archived:0,history:0,errors:[],kbBefore:null,kbAfter:null};
+  try{
+    const p=planCleanup(Date.now());
+    if(mode==='manual'&&p.del.length+p.old.length>0&&!confirm('Cleanup will permanently delete '+p.del.length+' notification(s) and '+p.old.length+' history entr'+(p.old.length===1?'y':'ies')+', and archive '+p.arc.length+'. Tasks, projects, applications, exams, finances and your Gmail are never touched. Continue?')) return null;
+    res.kbBefore=Math.round(JSON.stringify(S).length/1024);
+    const e=S.email, delSet=new Set(p.del), oldSet=new Set(p.old);
+    p.arc.forEach(a=>{ a.state='archived'; a.archivedAt=res.at; });
+    e.alerts=e.alerts.filter(a=>!delSet.has(a));
+    e.deletedIds=e.deletedIds.concat(p.del.filter(a=>!a.demo).map(a=>a.emailId)).slice(-300); // ids only, capped, so deleted alerts are not re-imported
+    S.history=S.history.filter(x=>!oldSet.has(x));
+    res.deleted=p.del.length; res.archived=p.arc.length; res.history=p.old.length;
+    res.kbAfter=Math.round(JSON.stringify(S).length/1024);
+  }catch(x){ res.errors.push(String(x)); }
+  r.last=res; save(); renderAll(); return res;
+}
+function cleanupDue(){ const r=S.retention; return r.auto&&(!r.last||Date.now()-Date.parse(r.last.at)>=r.frequencyHours*36e5); }
+function cleanupTick(){ try{ if(cleanupDue()) runCleanup('auto'); }catch(e){} }
+function retSave(){
+  const r=S.retention, g=id=>document.getElementById(id), n=(id,d)=>Math.max(1,Math.min(3650,parseInt(g(id).value)||d));
+  ['routineRead','routineUnread','importantRead','importantUnread','financial','history','archiveDays'].forEach(k=>r[k]=n('rt_'+k,r[k]));
+  r.auto=g('rt_auto').checked; r.preserveUnreadImportant=g('rt_pui').checked; r.frequencyHours=+g('rt_freq').value; save();
+}
+function renderRetention(){
+  const el=document.getElementById('dcRetention'); if(!el) return; const ae=document.activeElement;
+  if(ae&&ae.id&&ae.id.indexOf('rt_')===0&&el.contains(ae)) return;
+  const r=S.retention, l=r.last, num=(t,k)=>`<div class="field"><label>${t}</label><input id="rt_${k}" type="number" min="1" max="3650" value="${r[k]}" onchange="retSave()"></div>`;
+  el.innerHTML=`<div class="grid" style="margin-top:0;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));">${num('Routine · read (days)','routineRead')}${num('Routine · unread (days)','routineUnread')}${num('Important · read (days)','importantRead')}${num('Important · unread (days)','importantUnread')}${num('Financial alert history (days)','financial')}${num('Data change history (days)','history')}${num('Keep archived alerts (days)','archiveDays')}</div>
+   <label style="display:block;font-size:12.5px;margin:8px 0;"><input type="checkbox" id="rt_auto" ${r.auto?'checked':''} onchange="retSave()"> AUTO CLEANUP</label>
+   <label style="display:block;font-size:12.5px;margin:8px 0;"><input type="checkbox" id="rt_pui" ${r.preserveUnreadImportant?'checked':''} onchange="retSave()"> PRESERVE UNREAD IMPORTANT ALERTS (when OFF, unread important alerts are archived — never deleted — after their period)</label>
+   <label style="display:block;font-size:12.5px;margin:8px 0;opacity:.7;"><input type="checkbox" checked disabled> PRESERVE FINANCIAL RECORDS (mandatory: balances and finance entries are never cleaned)</label>
+   <div class="field" style="max-width:240px;"><label>Cleanup frequency</label><select id="rt_freq" onchange="retSave()">${[[1,'Every hour'],[6,'Every 6 hours'],[24,'Daily'],[168,'Weekly']].map(([v,t])=>`<option value="${v}" ${v===r.frequencyHours?'selected':''}>${t}</option>`).join('')}</select></div>
+   <button class="btn primary" onclick="runCleanup('manual')">RUN CLEANUP NOW</button>
+   <p class="sub" style="margin-top:12px;"><b>LAST CLEANUP:</b> ${l?`${new Date(l.at).toLocaleString()} (${l.mode}) · deleted ${l.deleted} · archived ${l.archived} · history entries removed ${l.history} · stored data ≈ ${l.kbBefore} KB → ${l.kbAfter} KB (estimate of this app's JSON, not measured disk space) · errors: ${l.errors.length?l.errors.map(esc).join('; '):'none'}`:'never'}</p>
+   <p class="sub">Never deleted by cleanup: tasks, projects, job applications, exam dates, finance records and balances, goals, and your original Gmail messages. Cleanup runs only while this app is open (at start, then on the chosen frequency); it cannot run while the browser is closed, and nothing here claims it did.</p>`;
+}
+function emArchive(id){ const a=S.email.alerts.find(x=>x.emailId===id); if(!a) return; if(a.state==='archived'){ a.state='active'; delete a.archivedAt; } else { a.state='archived'; a.archivedAt=new Date().toISOString(); } save(); renderEmail(); }
+function emLink(id){
+  const a=S.email.alerts.find(x=>x.emailId===id); if(!a) return;
+  showModal('Link alert to a pending task',`<div class="field"><label>Pending task</label><select id="mf_lt"><option value="">— none —</option>${S.tasks.filter(t=>t.status!=='Completed').map(t=>`<option value="${t.id}" ${a.taskId===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></div>`,()=>{ const v=document.getElementById('mf_lt').value; a.taskId=v?Number(v):null; save(); renderEmail(); closeModal(); });
+}
+function emDisconnect(){
+  if(!confirm('Disconnect Gmail in JARVIS OS? This only clears the connection info here. You must still revoke access in your Google account.')) return;
+  const e=S.email; e.lastRun=null; e.status=null; e.error=null; e.account=null; e.lastImport=null; e.scanned=0; save(); renderAll();
+}
+function renderPrivacy(){
+  const el=document.getElementById('emPrivacy'); if(!el) return; const e=S.email, [st,msg,col]=emStatus(), r=S.retention;
+  el.innerHTML=`<p><b>Gmail connection:</b> <span class="mono" style="color:${col}">● ${st}</span> — ${esc(msg)}</p>
+   <p><b>Expected account:</b> ${esc(e.config.expectedAccount)} · <b>Account reported by script:</b> ${esc(e.account||'—')}</p>
+   <p><b>Last successful sync:</b> ${e.lastRun?esc(new Date(e.lastRun).toLocaleString()):'—'} · <b>Last processing error:</b> ${esc(e.error||'none reported')}</p>
+   <p><b>Permissions the script should hold:</b> gmail.readonly, script.scriptapp. This page cannot query Google, so this is what the manifest requests, not a verified fact.</p>
+   <p><b>Stored per email:</b> id, sender, subject (long digit runs masked), received date, category, priority, reason, recommended action, deadline (only if written in the subject), status. No bodies, attachments, passwords, codes or tokens.</p>
+   <p><b>Retention:</b> routine ${r.routineRead}d read / ${r.routineUnread}d unread · important ${r.importantRead}d / ${r.importantUnread}d · financial ${r.financial}d · history ${r.history}d · auto cleanup ${r.auto?'ON':'OFF'}.</p>
+   <label style="display:block;margin:6px 0;"><input type="checkbox" ${e.mask!==false?'checked':''} onchange="S.email.mask=this.checked;save();renderEmail()"> Show a generic alert for finance and security emails (open them in Gmail to read)</label>
+   <button class="btn" onclick="emDisconnect()">Disconnect Gmail here</button>
+   <p style="margin-top:10px;"><b>Disconnect and revoke:</b> (1) In Apps Script run <code>removeTriggers</code>, then remove the web app deployment or delete the project. (2) Open myaccount.google.com/permissions, pick the script project and choose Remove access. (3) Check that it no longer appears in that list — this page cannot verify revocation for you. (4) Here: "Disconnect Gmail here" and, if you want, "Clear email data".</p>`;
+}
+
+/* ---------- V4: PWA + WEB PUSH CLIENT ---------- */
+function notifDefault(){ return {enabled:true,pausedUntil:null,dailyEnabled:true,summaryTime:'08:30',summaryDays:[0,1,2,3,4,5,6],h24:true,dayOf:true,dayOfTime:'09:00',projectFollow:true,projectDays:5,projectDeadline:true,weeklyEnabled:true,weeklyDay:0,weeklyTime:'18:00',maxPerDay:3,windowStart:8,windowEnd:21,urgent:true,showTitles:true}; }
+function daysAgo(iso){ return Math.floor((Date.now()-Date.parse(iso))/864e5); }
+function projIdle(p){ return p.status==='Active'&&p.progress<100&&!!p.lastActivity&&daysAgo(p.lastActivity)>=S.notif.projectDays; }
+function touchProject(id){ const p=id!=null&&S.projects.find(x=>x.id===id); if(p) p.lastActivity=new Date().toISOString(); }
+function registerSW(){ try{ if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').then(()=>refreshPushState()).catch(e=>pLog('service worker: '+e.message)); }catch(e){} }
+function routeHash(){ const v=(location.hash||'').slice(1); if(NAV.some(n=>n[0]===v)) goto(v); }
+window.addEventListener('hashchange',routeHash);
+const PUSH_KEY='jarvis_push_cfg'; // kept OUT of the exported backup: it holds the Worker URL and API token for this device
+function pcfg(){ try{ return JSON.parse(localStorage.getItem(PUSH_KEY))||{}; }catch(e){ return {}; } }
+function pcfgSave(c){ try{ localStorage.setItem(PUSH_KEY,JSON.stringify(c)); }catch(e){} }
+function pLog(m){ const c=pcfg(); c.errors=[{t:new Date().toISOString(),m:String(m).slice(0,200)}].concat(c.errors||[]).slice(0,30); pcfgSave(c); }
+function pushConfigured(){ const c=pcfg(); return !!(c.workerUrl&&c.token); }
+async function papi(path,method,body){ const c=pcfg(); const r=await fetch(c.workerUrl.replace(/\/$/,'')+path,{method:method||'GET',headers:{'Authorization':'Bearer '+c.token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined}); const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||('HTTP '+r.status)); return j; }
+function u8(b64){ const s=atob((b64+'='.repeat((4-b64.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(s,c=>c.charCodeAt(0)); }
+function pushSnapshot(){ // only what the reminders need: never finance, career or email data
+  const mask=s=>String(s||'').replace(/\d{6,}/g,'••').slice(0,80);
+  return {settings:Object.assign({},S.notif,{tz:Intl.DateTimeFormat().resolvedOptions().timeZone}),
+    tasks:S.tasks.filter(t=>t.status!=='Completed').map(t=>({id:t.id,name:t.category==='Finance'?'Finance task':mask(t.name),due:t.date,time:t.time||null,priority:t.priority,status:t.status,remind:t.remind||null})),
+    projects:S.projects.map(p=>({id:p.id,name:mask(p.name),progress:p.progress,status:p.status,lastActivity:p.lastActivity||null,deadline:p.deadline||null}))};
+}
+let syncTimer=null, lastHash='', pnState=null, pnLog=null;
+function schedulePushSync(){ if(!pushConfigured()||!pcfg().subscribed) return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>syncNow(false),5000); }
+async function syncNow(force){
+  if(!pushConfigured()) return {ok:false,error:'not configured'};
+  const snap=pushSnapshot(), hs=JSON.stringify(snap); if(!force&&hs===lastHash) return {ok:true,unchanged:true};
+  try{ const r=await papi('/api/sync','POST',snap); lastHash=hs; const c=pcfg(); c.lastSync={ok:true,at:new Date().toISOString(),tasks:r.tasks,projects:r.projects}; pcfgSave(c); renderNotif(); return r; }
+  catch(e){ pLog('sync: '+e.message); const c=pcfg(); c.lastSync={ok:false,at:new Date().toISOString(),error:e.message}; pcfgSave(c); renderNotif(); return {ok:false,error:e.message}; }
+}
+window.addEventListener('online',()=>{ const l=pcfg().lastSync; if(l&&!l.ok) syncNow(true); });
+async function refreshPushState(){
+  const st={secure:!!window.isSecureContext&&location.protocol==='https:',standalone:navigator.standalone===true||(!!window.matchMedia&&matchMedia('(display-mode: standalone)').matches),swSupported:'serviceWorker' in navigator,pushSupported:'PushManager' in window&&'Notification' in window,perm:('Notification' in window)?Notification.permission:'unsupported',sw:'none',sub:false,worker:null,devices:null};
+  try{ if(st.swSupported){ const reg=await navigator.serviceWorker.getRegistration(); st.sw=reg&&reg.active?'active':(reg?'installing':'none'); if(reg&&st.pushSupported) st.sub=!!(await reg.pushManager.getSubscription()); } }catch(e){}
+  if(pushConfigured()){ try{ st.worker=await papi('/api/status'); st.devices=await papi('/api/devices'); }catch(e){ st.worker={error:e.message}; } }
+  pnState=st; renderNotif();
+}
+function pnSay(t){ const m=document.getElementById('pnMsg'); if(m) m.textContent=t; }
+function pnSaveConn(){ const c=pcfg(), g=id=>document.getElementById(id).value.trim(); c.workerUrl=g('pn_url'); if(g('pn_tok')) c.token=g('pn_tok'); c.label=g('pn_label')||'iPhone'; pcfgSave(c); pnSay('Connection saved on this device.'); refreshPushState(); }
+async function enablePush(){
+  try{
+    if(!(window.isSecureContext&&'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window)) throw new Error('This context cannot do Web Push (needs the hosted https copy; on iPhone also installed to the Home Screen).');
+    if(!pushConfigured()) throw new Error('Save the Worker URL and API token first.');
+    const perm=await Notification.requestPermission(); if(perm!=='granted') throw new Error('Permission not granted ('+perm+').');
+    const c=pcfg(), reg=await navigator.serviceWorker.ready, vp=await (await fetch(c.workerUrl.replace(/\/$/,'')+'/api/vapid-public')).json(); if(!vp.publicKey) throw new Error('The Worker returned no VAPID public key.');
+    const old=await reg.pushManager.getSubscription(); if(old) await old.unsubscribe();
+    const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(vp.publicKey)}), j=sub.toJSON();
+    c.deviceId=c.deviceId||('d'+Math.random().toString(36).slice(2,10)); pcfgSave(c);
+    await papi('/api/subscribe','POST',{deviceId:c.deviceId,label:c.label||'iPhone',subscription:{endpoint:j.endpoint,keys:j.keys}});
+    const c2=pcfg(); c2.subscribed=true; c2.testConfirmed=false; pcfgSave(c2); await syncNow(true); pnSay('Subscribed and synced. Now send a test.');
+  }catch(e){ pLog('enable: '+e.message); pnSay('Could not enable: '+e.message); }
+  refreshPushState();
+}
+async function disablePush(){
+  try{ const c=pcfg(); const reg=await navigator.serviceWorker.getRegistration(); const s=reg&&await reg.pushManager.getSubscription(); if(s) await s.unsubscribe(); if(c.deviceId&&pushConfigured()) await papi('/api/revoke','POST',{deviceId:c.deviceId}); c.subscribed=false; c.testConfirmed=false; pcfgSave(c); pnSay('This device was unsubscribed and revoked.'); }catch(e){ pLog('disable: '+e.message); pnSay('Error: '+e.message); }
+  refreshPushState();
+}
+async function testPush(){
+  try{ const r=await papi('/api/test','POST',{deviceId:pcfg().deviceId}); pnSay('Push service replied: '+r.results.map(x=>x.pushServiceStatus).join(', ')+'. '+r.note+' Did it appear on your phone?'); }catch(e){ pLog('test: '+e.message); pnSay('Test failed: '+e.message); }
+}
+function confirmTest(){ const c=pcfg(); c.testConfirmed=true; pcfgSave(c); renderNotif(); }
+async function revokeDevice(id){ if(!confirm('Revoke this device? It will stop receiving notifications.')) return; try{ await papi('/api/revoke','POST',{deviceId:id}); if(id===pcfg().deviceId){ const c=pcfg(); c.subscribed=false; c.testConfirmed=false; pcfgSave(c); } }catch(e){ pLog('revoke: '+e.message); } refreshPushState(); }
+async function loadPushLog(){ try{ pnLog=await papi('/api/log'); }catch(e){ pnLog=[]; pLog('log: '+e.message); } renderNotif(); }
+function nsSave(){
+  const n=S.notif, g=id=>document.getElementById(id), num=(id,d,lo,hi)=>Math.min(hi,Math.max(lo,parseInt(g(id).value)||d));
+  n.enabled=g('ns_en').checked; n.dailyEnabled=g('ns_de').checked; n.summaryTime=g('ns_st').value||'08:30'; n.summaryDays=[0,1,2,3,4,5,6].filter(d=>g('ns_d'+d).checked);
+  n.h24=g('ns_h24').checked; n.dayOf=g('ns_do').checked; n.dayOfTime=g('ns_dot').value||'09:00'; n.projectFollow=g('ns_pf').checked; n.projectDays=num('ns_pd',5,1,60); n.projectDeadline=g('ns_pdl').checked;
+  n.weeklyEnabled=g('ns_we').checked; n.weeklyDay=num('ns_wd',0,0,6); n.weeklyTime=g('ns_wt').value||'18:00'; n.maxPerDay=num('ns_max',3,1,20); n.windowStart=num('ns_ws',8,0,23); n.windowEnd=num('ns_we2',21,1,24);
+  n.urgent=g('ns_ur').checked; n.showTitles=g('ns_ti').checked; save(); renderProjects();
+}
+function pausePush(days){ S.notif.pausedUntil=days?new Date(Date.now()+days*864e5).toISOString():null; save(); renderNotif(); }
+function pnOverall(){
+  const c=pcfg(), st=pnState; if(!pushConfigured()) return ['NOT CONFIGURED','No Worker connection saved on this device yet. Nothing can be sent.','var(--muted)'];
+  if(!st) return ['CHECKING…','','var(--muted)'];
+  if(st.worker&&st.worker.error) return ['ERROR','Cannot reach the Worker: '+st.worker.error,'var(--red)'];
+  if(!st.sub||!c.subscribed) return ['SETUP INCOMPLETE','This device is not subscribed to push yet.','var(--amber)'];
+  if(st.devices&&!st.devices.some(d=>d.deviceId===c.deviceId)) return ['SETUP INCOMPLETE','The Worker does not list this device. Enable notifications again.','var(--amber)'];
+  if(!(c.lastSync&&c.lastSync.ok)) return ['SETUP INCOMPLETE','Tasks have not been synced to the Worker yet.','var(--amber)'];
+  if(!c.testConfirmed) return ['READY — SEND A TEST','Everything is registered. It counts as working only after a test notification reaches your phone.','var(--amber)'];
+  return ['ACTIVE','You confirmed a real test notification arrived. Reminders are scheduled by the Worker, with delays of up to ~5 minutes.','var(--accent)'];
+}
+function renderNotif(){
+  const el=document.getElementById('pnStatus'); if(!el) return; const c=pcfg(), st=pnState||{}, [o,msg,col]=pnOverall(), n=S.notif;
+  const row=(ok,l,d)=>`<div style="display:flex;gap:8px;margin:3px 0;"><span style="color:${ok===true?'var(--accent)':ok===false?'var(--red)':'var(--muted2)'}">${ok===true?'✓':ok===false?'✗':'•'}</span><span><b>${l}</b> <span class="sub">${d}</span></span></div>`;
+  el.innerHTML=`<h3>PUSH STATUS <span class="mono" style="color:${col};font-size:12px;">● ${o}</span></h3><div class="sub">${esc(msg)}</div><div style="margin-top:10px;font-size:13px;">
+   ${row(st.secure,'HTTPS',st.secure?'secure context':'not available here (preview or non-https). Use the hosted copy.')}
+   ${row(st.standalone,'Installed on Home Screen',st.standalone?'running standalone':'required on iPhone for push; open from the Home Screen icon')}
+   ${row(st.sw==='active',"Service worker",st.swSupported?st.sw:'not supported in this context')}
+   ${row(st.perm==='granted'?true:st.perm==='denied'?false:null,'Notification permission',st.perm||'unknown')}
+   ${row(!!st.sub,'Push subscription',st.sub?'present in this browser':'none')}
+   ${row(st.worker?(st.worker.error?false:true):null,'Worker',st.worker?(st.worker.error?esc(st.worker.error):`reachable · ${st.worker.devices} device(s) · ${st.worker.tasks} task(s) synced`):'not checked')}
+   ${row(c.lastSync?c.lastSync.ok:null,'Last sync',c.lastSync?esc(new Date(c.lastSync.at).toLocaleString())+(c.lastSync.ok?'':' — failed: '+esc(c.lastSync.error)):'never')}
+   ${row(c.testConfirmed?true:null,'Test notification',c.testConfirmed?'you confirmed it arrived':'not confirmed yet')}</div>
+   <div class="sub" style="margin-top:8px;">${n.pausedUntil&&Date.parse(n.pausedUntil)>Date.now()?'⏸ Paused until '+esc(new Date(n.pausedUntil).toLocaleString())+'. ':''}Reminders are only sent while the Worker has your latest tasks; if you are offline when you complete or move a task, the change syncs when you are back online.</div>`;
+  const cn=document.getElementById('pnConn'), ae=document.activeElement;
+  if(!(ae&&ae.id&&ae.id.indexOf('pn_')===0&&cn.contains(ae))) cn.innerHTML=`<div class="grid" style="margin-top:0;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
+    <div class="field"><label>Worker URL</label><input id="pn_url" value="${esc(c.workerUrl||'')}" placeholder="https://jarvis-push.YOURNAME.workers.dev"></div>
+    <div class="field"><label>API token ${c.token?'(saved — leave blank to keep)':''}</label><input id="pn_tok" type="password" autocomplete="off" placeholder="${c.token?'••••••••':'paste your API_TOKEN'}"></div>
+    <div class="field"><label>This device's name</label><input id="pn_label" value="${esc(c.label||'iPhone')}"></div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn" onclick="pnSaveConn()">Save connection</button><button class="btn primary" onclick="enablePush()">Enable notifications</button><button class="btn" onclick="testPush()">Send test notification</button><button class="btn" onclick="confirmTest()">✓ It arrived</button><button class="btn" onclick="syncNow(true)">Sync now</button><button class="btn" style="border-color:var(--red);color:var(--red);" onclick="disablePush()">Disable on this device</button></div>
+    <p class="sub" id="pnMsg" style="margin-top:8px;"></p><p class="sub">The URL and token are stored only in this browser (never in backups or exports) and are sent only to your Worker.</p>`;
+  const ss=document.getElementById('pnSettings'); if(!(ae&&ae.id&&ae.id.indexOf('ns_')===0&&ss.contains(ae))){
+    const ck=(id,l,v)=>`<label style="display:block;font-size:12.5px;margin:6px 0;"><input type="checkbox" id="${id}" ${v?'checked':''} onchange="nsSave()"> ${l}</label>`, nf=(id,l,v,t,ex)=>`<div class="field"><label>${l}</label><input id="${id}" type="${t||'number'}" value="${v}" ${ex||''} onchange="nsSave()"></div>`;
+    ss.innerHTML=`<div class="grid" style="margin-top:0;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));"><div>
+      ${ck('ns_en','Notifications enabled',n.enabled)}
+      ${ck('ns_de','Daily summary (only sent if there is something relevant)',n.dailyEnabled)}${nf('ns_st','Daily summary time',n.summaryTime,'time')}
+      <div class="field"><label>Daily summary days</label>${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,i)=>`<label style="margin-right:8px;font-size:12px;"><input type="checkbox" id="ns_d${i}" ${n.summaryDays.includes(i)?'checked':''} onchange="nsSave()"> ${d}</label>`).join('')}</div>
+      ${ck('ns_h24','Reminder 24 hours before a deadline',n.h24)}${ck('ns_do','Extra reminder on the due day if still pending',n.dayOf)}${nf('ns_dot','Due-day reminder time',n.dayOfTime,'time')}
+      ${ck('ns_ur','Urgent alerts: CRITICAL tasks can exceed the daily limit',n.urgent)}${ck('ns_ti','Show task and project names in notifications (off = generic text)',n.showTitles)}</div><div>
+      ${ck('ns_pf','Project follow-up when a project has no activity',n.projectFollow)}${nf('ns_pd','Days without activity',n.projectDays)}${ck('ns_pdl','Project deadline reminders',n.projectDeadline)}
+      ${ck('ns_we','Weekly summary',n.weeklyEnabled)}${nf('ns_wd','Weekly summary day (0 = Sunday)',n.weeklyDay)}${nf('ns_wt','Weekly summary time',n.weeklyTime,'time')}
+      ${nf('ns_max','Max normal notifications per day',n.maxPerDay)}${nf('ns_ws','Allowed from (hour)',n.windowStart)}${nf('ns_we2','Allowed until (hour)',n.windowEnd)}
+      <div style="margin-top:8px;"><button class="btn" onclick="pausePush(1)">Pause 1 day</button> <button class="btn" onclick="pausePush(7)">Pause 7 days</button> <button class="btn" onclick="pausePush(0)">Resume</button></div></div></div>
+      <p class="sub">Projects with no "last activity" date are never treated as abandoned. Changes sync to the Worker a few seconds after you edit them.</p>`; }
+  const dv=document.getElementById('pnDevices'); dv.innerHTML=!pushConfigured()?'<p class="sub">Connect a Worker to see registered devices.</p>':(st.devices?(st.devices.length?st.devices.map(d=>`<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0;font-size:13px;"><span>${esc(d.label)}${d.deviceId===c.deviceId?' <span class="demo">THIS DEVICE</span>':''} <span class="sub">· ${esc(d.host)} · added ${esc(new Date(d.createdAt).toLocaleDateString())}</span></span><button class="btn" onclick="revokeDevice('${esc(d.deviceId)}')">Revoke</button></div>`).join(''):'<p class="sub">No devices registered.</p>'):'<p class="sub">Not loaded yet.</p>');
+  const hi=document.getElementById('pnHistory'), er=c.errors||[];
+  hi.innerHTML=`<button class="btn" onclick="loadPushLog()">Load sent history from Worker</button>
+   <div class="sub" style="margin-top:10px;">${pnLog?(pnLog.length?pnLog.slice(0,25).map(l=>`${esc(new Date(l.t).toLocaleString())} · <b>${esc(l.kind)}</b>${l.type?' · '+esc(l.type):''}${l.critical?' · critical':''}${l.statuses?' · push service '+esc(l.statuses.join(',')):''}${l.reason?' · '+esc(l.reason):''}${l.note?' · '+esc(l.note):''}`).join('<br>'):'No entries yet.'):'Not loaded.'}</div>
+   <div class="sub" style="margin-top:10px;"><b>Errors on this device:</b> ${er.length?'<br>'+er.map(x=>esc(new Date(x.t).toLocaleString())+' · '+esc(x.m)).join('<br>'):'none'}</div>`;
+}
+
+/* COMMAND BAR */
+document.getElementById('cmdinput').addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  const v=e.target.value.trim().toLowerCase(); e.target.value='';
+  const map={'/task':'tasks','/career':'career','/finance':'finance','/university':'university','/project':'projects','/ask':'ai','/email':'email'};
+  const key=Object.keys(map).find(k=>v.startsWith(k));
+  if(key){ goto(map[key]); if(key==='/ask'){ const rest=v.slice(key.length).trim(); if(rest){ setTimeout(()=>{document.getElementById('terminput').value=rest; handleAsk();},150);} } }
+  else { goto('ai'); setTimeout(()=>{document.getElementById('terminput').value=v; handleAsk();},150); }
+});
+</script>
+</body>
+</html>
